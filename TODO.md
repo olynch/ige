@@ -1,0 +1,16 @@
+Milestones
+---
+- [ ] Display a node (circular or rectangular)
+- [ ] Display a node with text in it
+- [ ] Display multiple nodes in various places
+- [ ] Display a straight edge
+- [ ] Display a straight edge with an arrow head
+- [ ] Display a spline edge with an arrow head
+- [ ] Display nodes and edges together, with manual positioning
+- [ ] Write algorithm for automatic positioning (force-directed graph drawing?)
+- [ ] Create serialization format and implement serialization and deserialization
+- [ ] Implement command line mode (ie. :, like in vim)
+- [ ] Write commands for selecting, adding, editing, and deleting nodes
+- [ ] Write commands for selecting, adding, editing, and deleting edges
+- [ ] Create keyboard shortcuts with arpeggio tree (ala vim or spacemacs, like c-a-n: change a node, or whatever)
+- [ ] Write selecting interface similar to vimium's "f"
