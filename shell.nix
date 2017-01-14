@@ -17,6 +17,7 @@ stdenv.mkDerivation {
     pkgconfig
     cairo
     gnome2.pango
+    gnumake
   ];
   shellHook = "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${libPath}";
 }
