@@ -1,6 +1,7 @@
 [package]
-name = "renderer"
+name = "ige-frontend"
 version = "0.1.0"
 authors = ["Owen Lynch <oclynch888@gmail.com>"]
 
 [dependencies]
+libc = "0.2"
