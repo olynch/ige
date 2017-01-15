@@ -6,6 +6,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
+#include <pango/pangocairo.h>
+#include "graphs.h"
 
 /*! Simple Cairo/Xlib example.
  * @author Bernhard R. Fischer, 2048R/5C5FFD47 <bf@abenteuerland.at>.
@@ -14,25 +17,103 @@
  * gcc -Wall $(pkg-config --libs --cflags cairo x11) -o cairo_xlib_simple cairo_xlib_simple.c
  */
 
+static void
+draw_text (cairo_t *cr, char * text, int x, int y)
+{
+/* #define RADIUS 150 */
+/* #define N_WORDS 10 */
+#define FONT "Hack 14"
+
+  PangoLayout *layout;
+  PangoFontDescription *desc;
+
+  /* Center coordinates on the middle of the region we are drawing
+   */
+  /* cairo_translate (cr, RADIUS, RADIUS); */
+
+  /* Create a PangoLayout, set the font and text */
+  layout = pango_cairo_create_layout (cr);
+
+  pango_layout_set_text (layout, text, -1);
+  desc = pango_font_description_from_string (FONT);
+  pango_layout_set_font_description (layout, desc);
+  pango_font_description_free (desc);
+
+  /* Draw the layout N_WORDS times in a circle */
+  /* for (i = 0; i < N_WORDS; i++) */
+  /*   { */
+  /* int i = 0; */
+  int width, height;
+  /* double angle = (360. * i) / N_WORDS; */
+  /* double red; */
+
+  cairo_save (cr);
+
+  /* Gradient from red at angle == 60 to blue at angle == 240 */
+  /* red   = (1 + cos ((angle - 60) * G_PI / 180.)) / 2; */
+  cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
+
+  /* cairo_rotate (cr, angle * G_PI / 180.); */
+
+  /* Inform Pango to re-layout the text with the new transformation */
+  /* pango_cairo_update_layout (cr, layout); */
+
+  pango_layout_get_size (layout, &width, &height);
+  cairo_move_to (cr, x - ((double)width / PANGO_SCALE) / 2, y - ((double)height / PANGO_SCALE) / 2);
+  pango_cairo_show_layout (cr, layout);
+
+  cairo_restore (cr);
+    /* } */
+
+  /* free the layout object */
+  g_object_unref (layout);
+}
+
+void draw_graph(cairo_t * cr, Graph * g) {
+  #define NODE_RADIUS 15
+  cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
+  for (int i = 0; i < g->len_nodes; i++) {
+    Node * n = g->nodes + i;
+    /* draw_text(cr, n->label, n->x, n->y); */
+    cairo_arc(cr, n->x, n->y, NODE_RADIUS, 0, 2 * M_PI);
+    cairo_fill(cr);
+  }
+  for (int i = 0; i < g->len_edges; i++) {
+    Edge * e = g->edges + i;
+    Node * start = graph_get_node(g, e->start_label);
+    Node * end = graph_get_node(g, e->end_label);
+    if (!start) {
+      fprintf(stderr, "Could not find start node %s\n", e->start_label);
+      continue;
+    }
+    if (!end) {
+      fprintf(stderr, "Could not find end node %s\n", e->end_label);
+      continue;
+    }
+    cairo_move_to(cr, start->x, start->y);
+    cairo_line_to(cr, end->x, end->y);
+    cairo_stroke(cr);
+  }
+}
+
 static void do_draw(cairo_surface_t *sfc)
 {
-   cairo_t *ctx;
-
-   ctx = cairo_create(sfc);
-   cairo_set_source_rgb(ctx, 1, 1, 1);
-   cairo_paint(ctx);
-   cairo_move_to(ctx, 20, 20);
-   cairo_line_to(ctx, 200, 400);
-   cairo_line_to(ctx, 450, 100);
-   cairo_line_to(ctx, 20, 20);
-   cairo_set_source_rgb(ctx, 0, 0, 1);
-   cairo_fill_preserve(ctx);
-   cairo_set_line_width(ctx, 5);
-   cairo_set_source_rgb(ctx, 1, 1, 0);
-   cairo_stroke(ctx);
-   cairo_destroy(ctx);
-   cairo_surface_flush(sfc);
-   XFlush(cairo_xlib_surface_get_display(sfc));
+  cairo_t * cr = cairo_create (sfc);
+  cairo_set_source_rgb (cr, 0.0, 0.0, 0.0);
+  cairo_paint (cr);
+  /* draw_text (cr, "Hello World", 249, 249); */
+  Graph * g = graph_alloc(3, 3);
+  node_init(g->nodes + 0, "A", 50, 50);
+  node_init(g->nodes + 1, "B", 450, 50);
+  node_init(g->nodes + 2, "C", 250, 450);
+  edge_init(g->edges + 0, "A", "B");
+  edge_init(g->edges + 1, "B", "C");
+  edge_init(g->edges + 2, "C", "A");
+  draw_graph(cr, g);
+  graph_dealloc(g);
+  cairo_destroy (cr);
+  cairo_surface_flush(sfc);
+  XFlush(cairo_xlib_surface_get_display(sfc));
 }
 
 /*! Check for Xlib Mouse/Keypress events. All other events are discarded.
