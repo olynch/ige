@@ -1,7 +1,20 @@
 [package]
-name = "ige-frontend"
+name = "ige_frontend"
 version = "0.1.0"
 authors = ["Owen Lynch <oclynch888@gmail.com>"]
 
+[lib]
+name = "ige_frontend"
+
 [dependencies]
-libc = "0.2"
+gtk = "0.1"
+glib = "0.0.8"
+cairo-rs = "0.1"
+petgraph = "0.4"
+regex = "0.2"
+
+[[bin]]
+name = "example"
+
+[[bin]]
+name = "testing"
