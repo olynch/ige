@@ -29,5 +29,5 @@ stdenv.mkDerivation {
   shellHook = "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${libPath}";
 
   RUST_BACKTRACE=1;
-  RUST_SRC_PATH="${pkgs.rustc.src}";
+  RUST_SRC_PATH="${pkgs.rustc.src}/src";
 }

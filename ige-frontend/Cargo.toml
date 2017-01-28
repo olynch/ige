@@ -8,10 +8,12 @@ name = "ige_frontend"
 
 [dependencies]
 gtk = "0.1"
+gdk = "0.5"
 glib = "0.0.8"
 cairo-rs = "0.1"
 petgraph = "0.4"
 regex = "0.2"
+cgmath = "0.12.0"
 
 [[bin]]
 name = "example"
