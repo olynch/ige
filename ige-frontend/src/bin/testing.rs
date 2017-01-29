@@ -7,11 +7,7 @@ use petgraph::graph::{Graph, NodeIndex};
 use std::sync::{Arc, RwLock};
 use std::sync::mpsc;
 use std::thread;
-use std::time::Duration;
 use std::str::FromStr;
-
-use std::io;
-use std::io::Write;
 
 use regex::Regex;
 
@@ -46,87 +42,8 @@ fn main() {
     tx_main_to_layout.send(()).unwrap();
     let g_input = g.clone();
     thread::spawn(move || {
-        // let add_node_re = Regex::new(r"^A (\d*\.\d*) (\d*.\d*)\n$").unwrap();
-        let add_edge_re = Regex::new(r"^E (\d+) (\d+)\n$").unwrap();
-        let del_node_re = Regex::new(r"^D (\d+)\n$").unwrap();
-        loop {
-            let mut input = String::new();
-            print!("> ");
-            io::stdout().flush();
-            io::stdin().read_line(&mut input).unwrap();
-            match input.chars().nth(0) {
-                Some('A') => {
-                    // match add_node_re.captures_iter(&input).nth(0) {
-                    //     Some(cap) => {
-                    //         let x = f64::from_str(&cap[1]).unwrap();
-                    //         let y = f64::from_str(&cap[2]).unwrap();
-                    //         let mut graph = g.write().unwrap();
-                    //         let n = graph.add_node(display::Node::new(x, y));
-                    //         tx_refresh.send(()).unwrap();
-                    //         println!("Added node at index: {:?}", n);
-                    //     }
-                    //     None => {
-                    //         println!("Failed to parse input");
-                    //     }
-                    // }
-                    let mut graph = g_input.write().unwrap();
-                    let n = graph.add_node(());
-                    tx_main_to_layout.send(()).unwrap();
-                    println!("Added node at index: {:?}", n);
-                }
-                Some('E') => {
-                    match add_edge_re.captures_iter(&input).nth(0) {
-                        Some(cap) => {
-                            let source = NodeIndex::new(usize::from_str(&cap[1]).unwrap());
-                            let sink = NodeIndex::new(usize::from_str(&cap[2]).unwrap());
-                            let mut graph = g_input.write().unwrap();
-                            match graph.node_weight(source) {
-                                Some(_) => {}
-                                None => {
-                                    println!("Source node does not exist.");
-                                    continue;
-                                }
-                            }
-                            match graph.node_weight(sink) {
-                                Some(_) => {}
-                                None => {
-                                    println!("Sink node does not exist");
-                                    continue;
-                                }
-                            }
-                            graph.add_edge(source, sink, ());
-                            tx_main_to_layout.send(()).unwrap();
-                        }
-                        None => {
-                            println!("Failed to parse input");
-                        }
-                    }
-                }
-                Some('D') => {
-                    match del_node_re.captures_iter(&input).nth(0) {
-                        Some(cap) => {
-                            let idx = NodeIndex::new(usize::from_str(&cap[1]).unwrap());
-                            let mut graph = g_input.write().unwrap();
-                            match graph.remove_node(idx) {
-                                Some(_) => {}
-                                None => {
-                                    println!("Node does not exist");
-                                    continue;
-                                }
-                            }
-                            tx_main_to_layout.send(()).unwrap();
-                        }
-                        None => {
-                            println!("Failed to parse input");
-                        }
-                    }
-                }
-                Some(_) => {}
-                None => {}
-            }
-        }
-    });
-    thread::spawn(move || {
+        let add_edge_re = Regex::new(r"^E (\d+) (\d+)$").unwrap();
+        let del_node_re = Regex::new(r"^D (\d+)$").unwrap();
         loop {
             let ev = rx_display_to_main.recv().unwrap();
             match ev {
@@ -135,6 +52,63 @@ fn main() {
                 }
                 display::Command { command: c } => {
                     println!("Received command {}.", c);
+                    match c.chars().nth(0) {
+                        Some('A') => {
+                            let mut graph = g_input.write().unwrap();
+                            let n = graph.add_node(());
+                            tx_main_to_layout.send(()).unwrap();
+                            println!("Added node at index: {:?}", n);
+                        }
+                        Some('E') => {
+                            match add_edge_re.captures_iter(&c).nth(0) {
+                                Some(cap) => {
+                                    let source = NodeIndex::new(usize::from_str(&cap[1]).unwrap());
+                                    let sink = NodeIndex::new(usize::from_str(&cap[2]).unwrap());
+                                    let mut graph = g_input.write().unwrap();
+                                    match graph.node_weight(source) {
+                                        Some(_) => {}
+                                        None => {
+                                            println!("Source node does not exist.");
+                                            continue;
+                                        }
+                                    }
+                                    match graph.node_weight(sink) {
+                                        Some(_) => {}
+                                        None => {
+                                            println!("Sink node does not exist");
+                                            continue;
+                                        }
+                                    }
+                                    graph.add_edge(source, sink, ());
+                                    tx_main_to_layout.send(()).unwrap();
+                                }
+                                None => {
+                                    println!("Failed to parse command");
+                                }
+                            }
+                        }
+                        Some('D') => {
+                            match del_node_re.captures_iter(&c).nth(0) {
+                                Some(cap) => {
+                                    let idx = NodeIndex::new(usize::from_str(&cap[1]).unwrap());
+                                    let mut graph = g_input.write().unwrap();
+                                    match graph.remove_node(idx) {
+                                        Some(_) => {}
+                                        None => {
+                                            println!("Node does not exist");
+                                            continue;
+                                        }
+                                    }
+                                    tx_main_to_layout.send(()).unwrap();
+                                }
+                                None => {
+                                    println!("Failed to parse command");
+                                }
+                            }
+                        }
+                        Some(_) => {}
+                        None => {}
+                    }
                 }
             }
         }

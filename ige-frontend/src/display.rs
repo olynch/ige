@@ -2,6 +2,7 @@ use std::sync::{Arc, RwLock};
 use std::rc::Rc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::cell::Cell;
+use std::char;
 
 use std::f64::consts::PI;
 
@@ -11,7 +12,8 @@ use gtk;
 use gtk::prelude::*;
 use gtk::DrawingArea;
 
-use cairo::Context;
+use cairo::{Context, FontFace};
+use cairo::enums::{FontWeight, FontSlant};
 
 use gdk::enums::key::Key;
 use gdk::ModifierType;
@@ -86,9 +88,20 @@ struct EditorState {
 }
 
 #[derive(Copy, Clone)]
+#[allow(dead_code)]
 enum Mode {
     Backend,
-    Viewer
+    Viewer,
+    Selector,
+    Command
+}
+
+struct WindowState {
+    display_data: Rc<Cell<DisplayData>>,
+    editor_state: Rc<Cell<EditorState>>,
+    command: Rc<RwLock<String>>,
+    window: Rc<gtk::Window>,
+    drawing_area: Rc<DrawingArea>
 }
 
 /// Runs the main window. Takes in an arc of a mutex of a graph to be rendered as well
@@ -99,36 +112,73 @@ pub fn main_window(shapes: Arc<RwLock<Vec<Shape>>>, rx: Receiver<()>, tx: Sender
         panic!("Failed to initialize gtk");
     }
 
-    let window = Rc::new(gtk::Window::new(gtk::WindowType::Toplevel));
-    let drawing_area = Rc::new(DrawingArea::new());
-    let display_data = Rc::new(Cell::new(DisplayData {
-        translation: Vector2::new(50., 50.),
-        size_scaling: 500.,
-        location_scaling: Matrix2::new(500., 0., 0., 500.)
-    }));
-    let editor_state = Rc::new(Cell::new(EditorState {
-        mode: Mode::Viewer
-    }));
+    let window_state = Rc::new(WindowState {
+        display_data: Rc::new(Cell::new(DisplayData {
+            translation: Vector2::new(50., 50.),
+            size_scaling: 500.,
+            location_scaling: Matrix2::new(500., 0., 0., 500.)
+        })),
+        window: Rc::new(gtk::Window::new(gtk::WindowType::Toplevel)),
+        drawing_area: Rc::new(DrawingArea::new()),
+        command: Rc::new(RwLock::new(String::new())),
+        editor_state: Rc::new(Cell::new(EditorState {
+            mode: Mode::Viewer
+        }))
+    });
+
     {
-        let display_data = display_data.clone();
-        drawing_area.connect_draw(move |_, cr| { display(shapes.clone(), display_data.clone(), cr); Inhibit(false) });
+        let window_state_draw = window_state.clone();
+        window_state.drawing_area.connect_draw(move |_, cr| {
+            display(shapes.clone(), window_state_draw.clone(), cr);
+            Inhibit(false)
+        });
     }
-    let key_press_sender = tx.clone();
     {
-        let editor_state = editor_state.clone();
-        let display_data = display_data.clone();
-        let window_key = window.clone();
+        let event_sender = tx.clone();
+        let editor_state = window_state.editor_state.clone();
+        let display_data = window_state.display_data.clone();
+        let window_key = window_state.window.clone();
+        let command = window_state.command.clone();
         let movement_keys: Vec<u32> = vec![u32::from('h'), u32::from('j'), u32::from('k'), u32::from('l')];
         let zoom_keys: Vec<u32> = vec![u32::from('+'), u32::from('-')];
         let rotate_keys: Vec<u32> = vec![u32::from('<'), u32::from('>')];
-        window.connect_key_press_event(move |_, key| {
+        window_state.window.connect_key_press_event(move |_, key| {
             let keyval = key.get_keyval();
             let keystate = key.get_state();
 
             // println!("key pressed: {} / {:?}", keyval, keystate);
             match editor_state.get().mode {
+                Mode::Command => {
+                    let mut command_str = command.write().unwrap();
+                    if keyval == 0xff0d {
+                        event_sender.send(Command { command: command_str.clone() }).unwrap();
+                        println!("Sent command: {}", command_str.as_str());
+                        command_str.clear();
+                        editor_state.set(EditorState { mode: Mode::Viewer });
+                        println!("Mode changed to Viewer");
+                        window_key.queue_draw();
+                    } else if keyval == 0xff1b {
+                        command_str.clear();
+                        editor_state.set(EditorState { mode: Mode::Viewer });
+                        window_key.queue_draw();
+                    } else if keyval == 0xff08 {
+                        command_str.pop();
+                        window_key.queue_draw();
+                    }
+                    else if keyval < 128 {
+                        match char::from_u32(keyval) {
+                            Some(c) => {
+                                if !c.is_control() {
+                                    command_str.push(c);
+                                    window_key.queue_draw();
+                                }
+                            }
+                            None => {}
+                        }
+                    }
+                }
                 Mode::Backend => {
-                    key_press_sender.send(KeyPress { key: keyval, modifier: keystate }).unwrap();
+                    event_sender.send(KeyPress { key: keyval, modifier: keystate }).unwrap();
                 }
                 Mode::Viewer => {
                     if movement_keys.contains(&keyval) {
@@ -157,9 +207,15 @@ pub fn main_window(shapes: Arc<RwLock<Vec<Shape>>>, rx: Receiver<()>, tx: Sender
                         };
                         display_data.set(display_data.get().rotate(rotation));
                         window_key.queue_draw();
+                    } else if keyval == u32::from(':') {
+                        editor_state.set(EditorState { mode: Mode::Command });
+                        println!("Mode changed to Command");
+                        window_key.queue_draw();
                     } else if keyval == u32::from('q') {
                         gtk::main_quit();
                     }
+                }
+                Mode::Selector => {
                 }
             }
 
@@ -168,13 +224,13 @@ pub fn main_window(shapes: Arc<RwLock<Vec<Shape>>>, rx: Receiver<()>, tx: Sender
         });
     }
 
-    window.connect_delete_event(|_, _| {
+    window_state.window.connect_delete_event(|_, _| {
         gtk::main_quit();
         Inhibit(false)
     });
 
     {
-        let drawing_area = drawing_area.clone();
+        let drawing_area = window_state.drawing_area.clone();
         gtk::timeout_add(50, move || {
             match rx.try_recv() {
                 Ok(_) => {
@@ -186,18 +242,35 @@ pub fn main_window(shapes: Arc<RwLock<Vec<Shape>>>, rx: Receiver<()>, tx: Sender
         });
     }
 
-    window.add(&*drawing_area);
-    window.show_all();
+    window_state.window.add(&*window_state.drawing_area);
+    window_state.window.show_all();
     gtk::main()
 }
 
 
-fn display(shapes: Arc<RwLock<Vec<Shape>>>, display_data: Rc<Cell<DisplayData>>, cr: &Context) {
+fn display(shapes: Arc<RwLock<Vec<Shape>>>,
+           window_state: Rc<WindowState>,
+           cr: &Context) {
     let shape_vec = shapes.read().unwrap();
     cr.set_source_rgb(0.1, 0.1, 0.1);
     cr.paint();
     cr.set_source_rgb(0.9, 0.9, 0.9);
     for s in shape_vec.iter() {
-        s.draw(display_data.get(), cr);
+        s.draw(window_state.display_data.get(), cr);
+    }
+    match window_state.editor_state.get().mode{
+        Mode::Command => {
+            let command_str = window_state.command.read().unwrap();
+            let mut displ_command = ":".to_string();
+            displ_command.push_str(command_str.as_str());
+            displ_command.push('\u{2588}');
+            let disp_rect = window_state.drawing_area.get_allocation();
+            let face = FontFace::toy_create("monospace", FontSlant::Normal, FontWeight::Normal);
+            cr.set_font_face(face);
+            cr.set_font_size(15.);
+            cr.move_to(0., (disp_rect.height as f64) - 10.);
+            cr.show_text(displ_command.as_str());
+        }
+        _ => {}
     }
 }
