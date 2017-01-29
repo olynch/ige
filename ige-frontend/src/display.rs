@@ -183,10 +183,10 @@ pub fn main_window(shapes: Arc<RwLock<Vec<Shape>>>, rx: Receiver<()>, tx: Sender
                 Mode::Viewer => {
                     if movement_keys.contains(&keyval) {
                         let move_vec = match keyval {
-                            104 => { Vector2::new(-20., 0.) }
-                            106 => { Vector2::new(0., 20.) }
-                            107 => { Vector2::new(0., -20.) }
-                            108 => { Vector2::new(20., 0.) }
+                            104 => { Vector2::new(20., 0.) }
+                            106 => { Vector2::new(0., -20.) }
+                            107 => { Vector2::new(0., 20.) }
+                            108 => { Vector2::new(-20., 0.) }
                             _ => { unreachable!() }
                         };
                         display_data.set(display_data.get().translate(move_vec));
