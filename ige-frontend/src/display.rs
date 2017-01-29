@@ -1,6 +1,7 @@
 use std::sync::{Arc, RwLock};
 use std::rc::Rc;
 use std::sync::mpsc::{Receiver, Sender};
+use std::cell::Cell;
 
 use std::f64::consts::PI;
 
@@ -40,7 +41,7 @@ impl Shape {
             }
             &Shape::Dot { p, r } => {
                 let new_p = display_data.location_scaling * p.to_vec() + display_data.translation;
-                println!("Displaying node at position {:?}", new_p);
+                // println!("Displaying node at position {:?}", new_p);
                 cr.arc(new_p.x, new_p.y, display_data.size_scaling * r, 0.0, 2.0 * PI);
                 cr.fill();
             }
@@ -55,6 +56,41 @@ struct DisplayData {
     location_scaling: Matrix2<f64>
 }
 
+impl DisplayData {
+    fn translate(self, v: Vector2<f64>) -> Self {
+        DisplayData {
+            translation: self.translation + v,
+            size_scaling: self.size_scaling,
+            location_scaling: self.location_scaling
+        }
+    }
+    fn zoom(self, s: f64) -> Self {
+        DisplayData {
+            translation: self.translation,
+            size_scaling: self.size_scaling * s,
+            location_scaling: self.location_scaling * s
+        }
+    }
+    fn rotate(self, d: f64) -> Self {
+        DisplayData {
+            translation: self.translation,
+            size_scaling: self.size_scaling,
+            location_scaling: self.location_scaling * Matrix2::new(d.cos(), -d.sin(), d.sin(), d.cos())
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+struct EditorState {
+    mode: Mode
+}
+
+#[derive(Copy, Clone)]
+enum Mode {
+    Backend,
+    Viewer
+}
+
 /// Runs the main window. Takes in an arc of a mutex of a graph to be rendered as well
 /// as a channel where a message is sent whenever a the graph gets updated and the
 /// graph should be re-rendered
@@ -63,24 +99,74 @@ pub fn main_window(shapes: Arc<RwLock<Vec<Shape>>>, rx: Receiver<()>, tx: Sender
         panic!("Failed to initialize gtk");
     }
 
-    let window = gtk::Window::new(gtk::WindowType::Toplevel);
+    let window = Rc::new(gtk::Window::new(gtk::WindowType::Toplevel));
     let drawing_area = Rc::new(DrawingArea::new());
-    let display_data = DisplayData {
+    let display_data = Rc::new(Cell::new(DisplayData {
         translation: Vector2::new(50., 50.),
         size_scaling: 500.,
         location_scaling: Matrix2::new(500., 0., 0., 500.)
-    };
-    drawing_area.connect_draw(move |_, cr| { display(shapes.clone(), display_data, cr); Inhibit(false) });
+    }));
+    let editor_state = Rc::new(Cell::new(EditorState {
+        mode: Mode::Viewer
+    }));
+    {
+        let display_data = display_data.clone();
+        drawing_area.connect_draw(move |_, cr| { display(shapes.clone(), display_data.clone(), cr); Inhibit(false) });
+    }
     let key_press_sender = tx.clone();
-    window.connect_key_press_event(move |_, key| {
-        let keyval = key.get_keyval();
-        let keystate = key.get_state();
+    {
+        let editor_state = editor_state.clone();
+        let display_data = display_data.clone();
+        let window_key = window.clone();
+        let movement_keys: Vec<u32> = vec![u32::from('h'), u32::from('j'), u32::from('k'), u32::from('l')];
+        let zoom_keys: Vec<u32> = vec![u32::from('+'), u32::from('-')];
+        let rotate_keys: Vec<u32> = vec![u32::from('<'), u32::from('>')];
+        window.connect_key_press_event(move |_, key| {
+            let keyval = key.get_keyval();
+            let keystate = key.get_state();
 
-        println!("key pressed: {} / {:?}", keyval, keystate);
-        key_press_sender.send(KeyPress { key: keyval, modifier: keystate }).unwrap();
+            // println!("key pressed: {} / {:?}", keyval, keystate);
+            match editor_state.get().mode {
+                Mode::Backend => {
+                    key_press_sender.send(KeyPress { key: keyval, modifier: keystate }).unwrap();
+                }
+                Mode::Viewer => {
+                    if movement_keys.contains(&keyval) {
+                        let move_vec = match keyval {
+                            104 => { Vector2::new(-20., 0.) }
+                            106 => { Vector2::new(0., 20.) }
+                            107 => { Vector2::new(0., -20.) }
+                            108 => { Vector2::new(20., 0.) }
+                            _ => { unreachable!() }
+                        };
+                        display_data.set(display_data.get().translate(move_vec));
+                        window_key.queue_draw();
+                    } else if zoom_keys.contains(&keyval) {
+                        let zoom_fact = match keyval {
+                            43 => { 1.5 }
+                            45 => { 0.75 }
+                            _ => { unreachable!() }
+                        };
+                        display_data.set(display_data.get().zoom(zoom_fact));
+                        window_key.queue_draw();
+                    } else if rotate_keys.contains(&keyval) {
+                        let rotation = match keyval {
+                            60 => { 0.25 * PI }
+                            62 => { -0.25 * PI }
+                            _ => { unreachable!() }
+                        };
+                        display_data.set(display_data.get().rotate(rotation));
+                        window_key.queue_draw();
+                    } else if keyval == u32::from('q') {
+                        gtk::main_quit();
+                    }
+                }
+            }
 
-        Inhibit(false)
-    });
+
+            Inhibit(false)
+        });
+    }
 
     window.connect_delete_event(|_, _| {
         gtk::main_quit();
@@ -105,12 +191,13 @@ pub fn main_window(shapes: Arc<RwLock<Vec<Shape>>>, rx: Receiver<()>, tx: Sender
     gtk::main()
 }
 
-fn display(shapes: Arc<RwLock<Vec<Shape>>>, display_data: DisplayData, cr: &Context) {
+
+fn display(shapes: Arc<RwLock<Vec<Shape>>>, display_data: Rc<Cell<DisplayData>>, cr: &Context) {
     let shape_vec = shapes.read().unwrap();
     cr.set_source_rgb(0.1, 0.1, 0.1);
     cr.paint();
     cr.set_source_rgb(0.9, 0.9, 0.9);
     for s in shape_vec.iter() {
-        s.draw(display_data, cr);
+        s.draw(display_data.get(), cr);
     }
 }
