@@ -12,32 +12,36 @@ use std::str::FromStr;
 use regex::Regex;
 
 use ige_frontend::display;
+use ige_frontend::display::DisplayInput;
 use ige_frontend::layout;
 
 fn main() {
     let g = Arc::new(RwLock::new(Graph::new()));
-    // {
-    //     let mut graph = g.write().unwrap();
-    //     let n1 = graph.add_node(());
-    //     let n2 = graph.add_node(());
-    //     let n3 = graph.add_node(());
-    //     let n4 = graph.add_node(());
-    //     // graph.add_edge(n1, n2, ());
-    //     // graph.add_edge(n2, n3, ());
-    //     // graph.add_edge(n3, n1, ());
-    //     // graph.add_edge(n4, n2, ());
-    // }
-    let shapes = Arc::new(RwLock::new(vec![]));
+    {
+        // let mut graph = g.write().unwrap();
+        // let node_idxs: Vec<NodeIndex> = (0..9).map(|_| { graph.add_node(()) }).collect();
+        // for i in 0..8 {
+        //     for j in (i + 1)..9 {
+        //         graph.add_edge(node_idxs[i], node_idxs[j], ());
+        //     }
+        // }
+        // graph.add_edge(n1, n2, ());
+        // graph.add_edge(n2, n3, ());
+        // graph.add_edge(n3, n1, ());
+        // graph.add_edge(n4, n2, ());
+    }
+    let display_input = Arc::new(RwLock::new(DisplayInput { shapes: vec![], selectors: vec![] }));
     let (tx_main_to_layout, rx_main_to_layout) = mpsc::channel();
     let (tx_layout_to_display, rx_layout_to_display) = mpsc::channel();
     let (tx_display_to_main, rx_display_to_main) = mpsc::channel();
-    let shapes_window = shapes.clone();
+    let display_input_window = display_input.clone();
     let window = thread::spawn(move || {
-        display::main_window(shapes_window.clone(), rx_layout_to_display, tx_display_to_main)
+        display::main_window(display_input_window.clone(), rx_layout_to_display, tx_display_to_main)
     });
     let g_layout = g.clone();
+    let display_input_layout = display_input.clone();
     thread::spawn(move || {
-        layout::layout_thread(g_layout.clone(), shapes.clone(), rx_main_to_layout, tx_layout_to_display)
+        layout::layout_thread(g_layout.clone(), display_input_layout.clone(), rx_main_to_layout, tx_layout_to_display)
     });
     tx_main_to_layout.send(()).unwrap();
     let g_input = g.clone();
@@ -49,6 +53,9 @@ fn main() {
             match ev {
                 display::KeyPress { key: k, modifier: m } => {
                     println!("Received keypress {} with modifier {:?}.", k, m);
+                }
+                display::Selection { key: i } => {
+                    println!("Recieved selection {}.", i);
                 }
                 display::Command { command: c } => {
                     println!("Received command {}.", c);

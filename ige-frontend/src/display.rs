@@ -3,6 +3,7 @@ use std::rc::Rc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::cell::Cell;
 use std::char;
+use std::str::FromStr;
 
 use std::f64::consts::PI;
 
@@ -20,15 +21,23 @@ use gdk::ModifierType;
 
 pub enum Event {
     KeyPress { key: Key, modifier: ModifierType },
-    Command { command: String }
+    Command { command: String },
+    Selection { key: u32 }
 }
 
 pub use self::Event::KeyPress;
 pub use self::Event::Command;
+pub use self::Event::Selection;
 
 pub enum Shape {
     Line { p1: Point2<f64>, p2: Point2<f64> },
-    Dot { p: Point2<f64>, r: f64 }
+    Dot { p: Point2<f64>, r: f64 },
+    Text { lower_left: Point2<f64>, text: String }
+}
+
+pub struct DisplayInput {
+    pub shapes: Vec<Shape>,
+    pub selectors: Vec<(Point2<f64>, u32)>
 }
 
 impl Shape {
@@ -46,6 +55,11 @@ impl Shape {
                 // println!("Displaying node at position {:?}", new_p);
                 cr.arc(new_p.x, new_p.y, display_data.size_scaling * r, 0.0, 2.0 * PI);
                 cr.fill();
+            }
+            &Shape::Text { lower_left, ref text } => {
+                let new_p = display_data.location_scaling * lower_left.to_vec() + display_data.translation;
+                cr.move_to(new_p.x, new_p.y);
+                cr.show_text(text);
             }
         }
     }
@@ -107,16 +121,17 @@ struct WindowState {
 /// Runs the main window. Takes in an arc of a mutex of a graph to be rendered as well
 /// as a channel where a message is sent whenever a the graph gets updated and the
 /// graph should be re-rendered
-pub fn main_window(shapes: Arc<RwLock<Vec<Shape>>>, rx: Receiver<()>, tx: Sender<Event>) -> () {
+pub fn main_window(display_input: Arc<RwLock<DisplayInput>>, rx: Receiver<()>, tx: Sender<Event>) -> () {
     if gtk::init().is_err() {
         panic!("Failed to initialize gtk");
     }
 
+    // let drawing_area
     let window_state = Rc::new(WindowState {
         display_data: Rc::new(Cell::new(DisplayData {
-            translation: Vector2::new(50., 50.),
+            translation: Vector2::new(200., 200.),
             size_scaling: 500.,
-            location_scaling: Matrix2::new(500., 0., 0., 500.)
+            location_scaling: Matrix2::new(100., 0., 0., 100.)
         })),
         window: Rc::new(gtk::Window::new(gtk::WindowType::Toplevel)),
         drawing_area: Rc::new(DrawingArea::new()),
@@ -129,7 +144,7 @@ pub fn main_window(shapes: Arc<RwLock<Vec<Shape>>>, rx: Receiver<()>, tx: Sender
     {
         let window_state_draw = window_state.clone();
         window_state.drawing_area.connect_draw(move |_, cr| {
-            display(shapes.clone(), window_state_draw.clone(), cr);
+            display(display_input.clone(), window_state_draw.clone(), cr);
             Inhibit(false)
         });
     }
@@ -213,9 +228,40 @@ pub fn main_window(shapes: Arc<RwLock<Vec<Shape>>>, rx: Receiver<()>, tx: Sender
                         window_key.queue_draw();
                     } else if keyval == u32::from('q') {
                         gtk::main_quit();
+                    } else if keyval == u32::from('f') {
+                        editor_state.set(EditorState { mode: Mode::Selector });
+                        println!("Mode changed to Selector");
+                        window_key.queue_draw();
                     }
                 }
                 Mode::Selector => {
+                    let mut command_str = command.write().unwrap();
+                    if keyval == 0xff0d {
+                        event_sender.send(Selection { key: u32::from_str(command_str.as_str()).unwrap() }).unwrap();
+                        println!("Sent selection: {}", command_str.as_str());
+                        command_str.clear();
+                        editor_state.set(EditorState { mode: Mode::Viewer });
+                        println!("Mode changed to Viewer");
+                        window_key.queue_draw();
+                    } else if keyval == 0xff1b {
+                        command_str.clear();
+                        editor_state.set(EditorState { mode: Mode::Viewer });
+                        window_key.queue_draw();
+                    } else if keyval == 0xff08 {
+                        command_str.pop();
+                        window_key.queue_draw();
+                    }
+                    else if keyval < 128 {
+                        match char::from_u32(keyval) {
+                            Some(c) => {
+                                if c.is_digit(10) {
+                                    command_str.push(c);
+                                    window_key.queue_draw();
+                                }
+                            }
+                            None => {}
+                        }
+                    }
                 }
             }
 
@@ -248,14 +294,20 @@ pub fn main_window(shapes: Arc<RwLock<Vec<Shape>>>, rx: Receiver<()>, tx: Sender
 }
 
 
-fn display(shapes: Arc<RwLock<Vec<Shape>>>,
+fn display(display_input: Arc<RwLock<DisplayInput>>,
            window_state: Rc<WindowState>,
            cr: &Context) {
-    let shape_vec = shapes.read().unwrap();
+    let display_input_read = display_input.read().unwrap();
+    let ref shapes = display_input_read.shapes;
+    let ref selectors = display_input_read.selectors;
     cr.set_source_rgb(0.1, 0.1, 0.1);
     cr.paint();
     cr.set_source_rgb(0.9, 0.9, 0.9);
-    for s in shape_vec.iter() {
+    let disp_rect = window_state.drawing_area.get_allocation();
+    let face = FontFace::toy_create("monospace", FontSlant::Normal, FontWeight::Normal);
+    cr.set_font_face(face);
+    cr.set_font_size(15.);
+    for s in shapes.iter() {
         s.draw(window_state.display_data.get(), cr);
     }
     match window_state.editor_state.get().mode{
@@ -264,11 +316,28 @@ fn display(shapes: Arc<RwLock<Vec<Shape>>>,
             let mut displ_command = ":".to_string();
             displ_command.push_str(command_str.as_str());
             displ_command.push('\u{2588}');
-            let disp_rect = window_state.drawing_area.get_allocation();
-            let face = FontFace::toy_create("monospace", FontSlant::Normal, FontWeight::Normal);
-            cr.set_font_face(face);
-            cr.set_font_size(15.);
-            cr.move_to(0., (disp_rect.height as f64) - 10.);
+            cr.move_to(0., (disp_rect.height as f64) - 7.);
+            cr.show_text(displ_command.as_str());
+        }
+        Mode::Selector => {
+            let display_data = window_state.display_data.get();
+            for &(p, i) in selectors.iter() {
+                let new_p = display_data.location_scaling * p.to_vec() + display_data.translation;
+                let text = format!("{}", i);
+                let extents = cr.text_extents(text.as_str());
+                cr.set_source_rgb(0.9, 0.9, 0.1);
+                cr.rectangle(new_p.x - 2., new_p.y - extents.height - 2., extents.width + 4., extents.height + 4.);
+                cr.fill();
+                cr.move_to(new_p.x, new_p.y);
+                cr.set_source_rgb(0.2, 0.2, 0.2);
+                cr.show_text(format!("{}", i).as_str());
+            }
+            cr.set_source_rgb(0.9, 0.9, 0.9);
+            let command_str = window_state.command.read().unwrap();
+            let mut displ_command = "select:".to_string();
+            displ_command.push_str(command_str.as_str());
+            displ_command.push('\u{2588}');
+            cr.move_to(0., (disp_rect.height as f64) - 7.);
             cr.show_text(displ_command.as_str());
         }
         _ => {}
