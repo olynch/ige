@@ -1,16 +1,29 @@
 Milestones
 ---
-- [ ] Display a node (circular or rectangular)
-- [ ] Display a node with text in it
-- [ ] Display multiple nodes in various places
-- [ ] Display a straight edge
-- [ ] Display a straight edge with an arrow head
-- [ ] Display a spline edge with an arrow head
-- [ ] Display nodes and edges together, with manual positioning
-- [ ] Write algorithm for automatic positioning (force-directed graph drawing?)
+- [X] Display a node (circular or rectangular)
+- [X] Display a node with text in it
+- [X] Display multiple nodes in various places
+- [X] Display a straight edge
+- [X] Display a straight edge with an arrow head
+- [X] Display a spline edge with an arrow head
+- [X] Display nodes and edges together, with manual positioning
+- [X] Write algorithm for automatic positioning (force-directed graph drawing?)
 - [ ] Create serialization format and implement serialization and deserialization
-- [ ] Implement command line mode (ie. :, like in vim)
-- [ ] Write commands for selecting, adding, editing, and deleting nodes
+- [X] Implement command line mode (ie. :, like in vim)
+- [-] Write commands for selecting, adding, editing, and deleting nodes
+  - [X] Adding
+  - [X] Deleting
+  - [-] Selecting
+  - [ ] Editing
 - [ ] Write commands for selecting, adding, editing, and deleting edges
+  - [X] Adding
+  - [ ] Editing
+  - [ ] Deleting
+  - [ ] Selecting
 - [ ] Create keyboard shortcuts with arpeggio tree (ala vim or spacemacs, like c-a-n: change a node, or whatever)
-- [ ] Write selecting interface similar to vimium's "f"
+- [X] Write selecting interface similar to vimium's "f"
+- [ ] Write json communication between Haskell and Rust
+  - use serde_json, aeson
+  - send data using
+    - ZeroMQ? Raw TCP? stdin/stdout? Pipes?
+    - Probably pipes are easiest
