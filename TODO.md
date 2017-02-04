@@ -10,10 +10,10 @@ Milestones
 - [X] Write algorithm for automatic positioning (force-directed graph drawing?)
 - [ ] Create serialization format and implement serialization and deserialization
 - [X] Implement command line mode (ie. :, like in vim)
-- [-] Write commands for selecting, adding, editing, and deleting nodes
+- [ ] Write commands for selecting, adding, editing, and deleting nodes
   - [X] Adding
   - [X] Deleting
-  - [-] Selecting
+  - [ ] Selecting
   - [ ] Editing
 - [ ] Write commands for selecting, adding, editing, and deleting edges
   - [X] Adding
