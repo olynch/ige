@@ -25,6 +25,7 @@ stdenv.mkDerivation {
     glib
     gdk_pixbuf
     # gnome2.gdk
+    rustracer
   ];
   shellHook = "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${libPath}";
 

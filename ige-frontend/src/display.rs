@@ -29,18 +29,25 @@ pub use self::Event::KeyPress;
 pub use self::Event::Command;
 pub use self::Event::Selection;
 
+/// The primitive for drawing
+/// Coordinates are in the range [0.0,1.0], and are transformed by DisplayData
 pub enum Shape {
     Line { p1: Point2<f64>, p2: Point2<f64> },
     Dot { p: Point2<f64>, r: f64 },
     Text { lower_left: Point2<f64>, text: String }
 }
 
+/// A struct representing what should currently be drawn on the screen
+/// Essentially like SVG, but with some metadata as well, like what to send back
+/// on a selection
 pub struct DisplayInput {
     pub shapes: Vec<Shape>,
     pub selectors: Vec<(Point2<f64>, u32)>
 }
 
 impl Shape {
+    /// Draw the shape to a cairo context
+    /// Change this method in order to draw more shapes
     fn draw(&self, display_data: DisplayData, cr: &Context) {
         match self {
             &Shape::Line { p1, p2 } => {
@@ -65,6 +72,8 @@ impl Shape {
     }
 }
 
+/// Describes the current focused window
+/// TODO: Can this be replaced by just a matrix?
 #[derive(Copy, Clone)]
 struct DisplayData {
     translation: Vector2<f64>,
@@ -96,20 +105,26 @@ impl DisplayData {
     }
 }
 
+/// May add more fields later -- selection interface?
 #[derive(Copy, Clone)]
 struct EditorState {
     mode: Mode
 }
 
+/// TODO: remove this, and instead have window focus commands come from the backend
 #[derive(Copy, Clone)]
 #[allow(dead_code)]
 enum Mode {
+    /// Send keypresses to backend
     Backend,
     Viewer,
     Selector,
     Command
 }
 
+/// Contains the current state of the window
+/// Has all the data necessary to draw the window
+/// TODO: Add statusline
 struct WindowState {
     display_data: Rc<Cell<DisplayData>>,
     editor_state: Rc<Cell<EditorState>>,
@@ -157,6 +172,10 @@ pub fn main_window(display_input: Arc<RwLock<DisplayInput>>, rx: Receiver<()>, t
         let movement_keys: Vec<u32> = vec![u32::from('h'), u32::from('j'), u32::from('k'), u32::from('l')];
         let zoom_keys: Vec<u32> = vec![u32::from('+'), u32::from('-')];
         let rotate_keys: Vec<u32> = vec![u32::from('<'), u32::from('>')];
+
+        // We should put some of this logic in haskell, except for the command string
+        // Maybe we want to have a separate REPL instead of the bottom line, in a terminal?
+        // In that case, no command stuff
         window_state.window.connect_key_press_event(move |_, key| {
             let keyval = key.get_keyval();
             let keystate = key.get_state();
@@ -277,6 +296,9 @@ pub fn main_window(display_input: Arc<RwLock<DisplayInput>>, rx: Receiver<()>, t
 
     {
         let drawing_area = window_state.drawing_area.clone();
+        // 50ms is essentially the refresh rate
+        // We should make this level triggered instead of edge triggered so that we
+        // don't do unnecessary redraws, but that can wait
         gtk::timeout_add(50, move || {
             match rx.try_recv() {
                 Ok(_) => {
@@ -294,6 +316,8 @@ pub fn main_window(display_input: Arc<RwLock<DisplayInput>>, rx: Receiver<()>, t
 }
 
 
+/// `display` takes in a pointer to the DisplayInput, which contains the vector drawing
+/// of the screen, and rasterizes it to the cairo context cr
 fn display(display_input: Arc<RwLock<DisplayInput>>,
            window_state: Rc<WindowState>,
            cr: &Context) {
@@ -311,6 +335,7 @@ fn display(display_input: Arc<RwLock<DisplayInput>>,
         s.draw(window_state.display_data.get(), cr);
     }
     match window_state.editor_state.get().mode{
+        // special case logic for drawing the selection labels and the command string
         Mode::Command => {
             let command_str = window_state.command.read().unwrap();
             let mut displ_command = ":".to_string();

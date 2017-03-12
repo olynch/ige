@@ -10,15 +10,24 @@ let
   ];
 in
 stdenv.mkDerivation {
-  name = "ige";
+  name = "rust-opengl";
   buildInputs = with pkgs; [
+    rustc
+    cargo
+    cmake
     gcc
     gdb
+    linuxPackages.perf
     pkgconfig
+    gtk3
     cairo
     gnome2.pango
-    gnumake
-    netcat
+    glib
+    gdk_pixbuf
+    # gnome2.gdk
   ];
   shellHook = "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${libPath}";
+
+  RUST_BACKTRACE=1;
+  RUST_SRC_PATH="${pkgs.rustc.src}/src";
 }

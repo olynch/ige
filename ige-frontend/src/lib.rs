@@ -5,9 +5,13 @@ extern crate cairo;
 extern crate glib;
 extern crate regex;
 extern crate cgmath;
+extern crate serde;
+extern crate serde_derive;
+extern crate rmp_serde;
 
 pub mod display;
 pub mod layout;
+pub mod messages;
 
 #[cfg(test)]
 mod tests {

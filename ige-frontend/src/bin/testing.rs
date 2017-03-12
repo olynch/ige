@@ -1,3 +1,9 @@
+//! This file contains lots of stuff that should really be refactored
+//! into a library. Currently, it runs the entire editor.
+//! TODO: Refactor the important bits into relevant modules
+//! TODO: Replace with ige_frontend, a binary that connects to a socket
+//! and sends events and reads commands from that socket.
+
 extern crate petgraph;
 extern crate ige_frontend;
 extern crate regex;
@@ -16,33 +22,33 @@ use ige_frontend::display::DisplayInput;
 use ige_frontend::layout;
 
 fn main() {
+    // This is the graph that we are editing, also the communication data between the
+    // logic thread and the layout thread
     let g = Arc::new(RwLock::new(Graph::new()));
-    {
-        // let mut graph = g.write().unwrap();
-        // let node_idxs: Vec<NodeIndex> = (0..9).map(|_| { graph.add_node(()) }).collect();
-        // for i in 0..8 {
-        //     for j in (i + 1)..9 {
-        //         graph.add_edge(node_idxs[i], node_idxs[j], ());
-        //     }
-        // }
-        // graph.add_edge(n1, n2, ());
-        // graph.add_edge(n2, n3, ());
-        // graph.add_edge(n3, n1, ());
-        // graph.add_edge(n4, n2, ());
-    }
+
+    // This is the initial contents of the window in vector form, also the communication
+    // data between the layout thread and the display thread
     let display_input = Arc::new(RwLock::new(DisplayInput { shapes: vec![], selectors: vec![] }));
+
+    // Names tell it all
     let (tx_main_to_layout, rx_main_to_layout) = mpsc::channel();
     let (tx_layout_to_display, rx_layout_to_display) = mpsc::channel();
     let (tx_display_to_main, rx_display_to_main) = mpsc::channel();
+
+    // Display thread
     let display_input_window = display_input.clone();
     let window = thread::spawn(move || {
         display::main_window(display_input_window.clone(), rx_layout_to_display, tx_display_to_main)
     });
+
+    // Layout thread
     let g_layout = g.clone();
     let display_input_layout = display_input.clone();
     thread::spawn(move || {
         layout::layout_thread(g_layout.clone(), display_input_layout.clone(), rx_main_to_layout, tx_layout_to_display)
     });
+
+    // Logic(/main) thread
     tx_main_to_layout.send(()).unwrap();
     let g_input = g.clone();
     thread::spawn(move || {
@@ -120,5 +126,7 @@ fn main() {
             }
         }
     });
+
+    // wait until we quit the gtk window
     window.join().unwrap();
 }

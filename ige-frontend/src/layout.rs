@@ -14,6 +14,7 @@ use cgmath::InnerSpace;
 
 use display::{Shape, DisplayInput};
 
+/// We might add different types of edges in the simulation
 enum LEdge {
     Spring { k: f64, l: f64 }
 }
@@ -24,6 +25,9 @@ const STEP_SIZE: f64 = 0.01;
 const DEFAULT_K: f64 = 0.1;
 const DEFAULT_L: f64 = 0.8;
 
+/// This is essentially a stream processor. When the source_graph changes
+/// (whenever we receive a message) we process the source_graph and render it
+/// to a vector format in DisplayInput
 pub fn layout_thread<N, E>(source_graph: Arc<RwLock<Graph<N, E>>>,
                            display_input: Arc<RwLock<DisplayInput>>,
                            rx: Receiver<()>,
@@ -39,6 +43,9 @@ pub fn layout_thread<N, E>(source_graph: Arc<RwLock<Graph<N, E>>>,
     }
 }
 
+/// This generates the initial layout that we run the physics simulation on
+/// TODO: right now this is stateless. Do we want it to continue to be stateless?
+/// TODO: How do we store the state if so?
 fn initialize_layout<N, E>(source_graph: &Graph<N, E>)
                            -> Graph<Point2<f64>, LEdge> {
     // To start off, I'm just going to put the nodes in a square.
@@ -62,10 +69,14 @@ fn initialize_layout<N, E>(source_graph: &Graph<N, E>)
     layout_graph
 }
 
+/// Runs fd_step until it returns a maximum step size that we consider stable
+/// TODO: should we begin with larger step sizes and go down to smaller step sizes?
 fn iter_fd_step(layout_graph: &mut Frozen<Graph<Point2<f64>, LEdge>>) -> () {
     while fd_step(layout_graph, STEP_SIZE) > STABLE_MOVEMENT {}
 }
 
+/// Once we have run the simulation, this renders our simple graph of points and
+/// edges to the vector output
 fn render_layout(layout_graph: &Graph<Point2<f64>, LEdge>,
                  display_input: &mut DisplayInput) -> () {
     display_input.shapes.clear();
