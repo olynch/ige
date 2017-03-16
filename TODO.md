@@ -24,6 +24,9 @@ Milestones
 - [X] Write selecting interface similar to vimium's "f"
 - [ ] Write msgpack communication between Haskell and Rust
   - [ ] write msgpack API, implement using rmp-serde and messagepack
+  - [ ] write generic serialization for Haskell types -- look at
+    - https://github.com/TokTok/hs-msgpack/blob/master/src/Data/MessagePack/Generic.hs
+    - https://wiki.haskell.org/GHC.Generics
 
 
 Things We Have Learned

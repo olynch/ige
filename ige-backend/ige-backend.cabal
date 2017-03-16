@@ -1,0 +1,59 @@
+name:               pipes-hs
+version:            0.0.0
+cabal-version:      >= 1.8
+build-type:         Simple
+extra-source-files:
+
+executable          pipes
+  main-is:          Main.hs
+  other-modules:
+
+  ghc-options:      -Wall -fwarn-tabs -O2
+
+  build-depends:  base
+                , aeson
+                , text
+                , bytestring
+                , optparse-applicative
+                , unix
+
+  ghc-options:    -threaded -O2 -rtsopts -with-rtsopts=-N
+
+executable          echoc
+  main-is:          EchoC.hs
+  other-modules:
+
+  ghc-options:      -Wall -fwarn-tabs -O2
+
+  build-depends:  base
+                , aeson
+                , text
+                , bytestring
+                , optparse-applicative
+                , unix
+                , network
+                , messagepack
+
+  ghc-options:    -threaded -O2 -rtsopts -with-rtsopts=-N
+
+executable          echos
+  main-is:          EchoS.hs
+  other-modules: Messages
+
+  ghc-options:      -Wall -fwarn-tabs -O2
+
+  build-depends:  base
+                , aeson
+                , text
+                , bytestring
+                , optparse-applicative
+                , unix
+                , network
+                , messagepack
+                , cereal
+                , cereal-conduit
+                , conduit
+                , conduit-combinators
+                , conduit-extra
+
+  ghc-options:    -threaded -O2 -rtsopts -with-rtsopts=-N
