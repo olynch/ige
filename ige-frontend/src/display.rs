@@ -19,15 +19,7 @@ use cairo::enums::{FontWeight, FontSlant};
 use gdk::enums::key::Key;
 use gdk::ModifierType;
 
-pub enum Event {
-    KeyPress { key: Key, modifier: ModifierType },
-    Command { command: String },
-    Selection { key: u32 }
-}
-
-pub use self::Event::KeyPress;
-pub use self::Event::Command;
-pub use self::Event::Selection;
+use messages::Event::*;
 
 /// The primitive for drawing
 /// Coordinates are in the range [0.0,1.0], and are transformed by DisplayData
@@ -42,6 +34,8 @@ pub enum Shape {
 /// on a selection
 pub struct DisplayInput {
     pub shapes: Vec<Shape>,
+    /// These are like callbacks, they tell where the nodes are and what should
+    /// be sent back when a specific node is selected
     pub selectors: Vec<(Point2<f64>, u32)>
 }
 
@@ -108,7 +102,8 @@ impl DisplayData {
 /// May add more fields later -- selection interface?
 #[derive(Copy, Clone)]
 struct EditorState {
-    mode: Mode
+    mode: Mode,
+    selector: Option<Rc<Selector>>
 }
 
 /// TODO: remove this, and instead have window focus commands come from the backend
@@ -116,10 +111,8 @@ struct EditorState {
 #[allow(dead_code)]
 enum Mode {
     /// Send keypresses to backend
-    Backend,
-    Viewer,
-    Selector,
-    Command
+    Regular,
+    Selector
 }
 
 /// Contains the current state of the window
@@ -128,7 +121,6 @@ enum Mode {
 struct WindowState {
     display_data: Rc<Cell<DisplayData>>,
     editor_state: Rc<Cell<EditorState>>,
-    command: Rc<RwLock<String>>,
     window: Rc<gtk::Window>,
     drawing_area: Rc<DrawingArea>
 }
@@ -150,7 +142,6 @@ pub fn main_window(display_input: Arc<RwLock<DisplayInput>>, rx: Receiver<()>, t
         })),
         window: Rc::new(gtk::Window::new(gtk::WindowType::Toplevel)),
         drawing_area: Rc::new(DrawingArea::new()),
-        command: Rc::new(RwLock::new(String::new())),
         editor_state: Rc::new(Cell::new(EditorState {
             mode: Mode::Viewer
         }))
@@ -168,10 +159,6 @@ pub fn main_window(display_input: Arc<RwLock<DisplayInput>>, rx: Receiver<()>, t
         let editor_state = window_state.editor_state.clone();
         let display_data = window_state.display_data.clone();
         let window_key = window_state.window.clone();
-        let command = window_state.command.clone();
-        let movement_keys: Vec<u32> = vec![u32::from('h'), u32::from('j'), u32::from('k'), u32::from('l')];
-        let zoom_keys: Vec<u32> = vec![u32::from('+'), u32::from('-')];
-        let rotate_keys: Vec<u32> = vec![u32::from('<'), u32::from('>')];
 
         // We should put some of this logic in haskell, except for the command string
         // Maybe we want to have a separate REPL instead of the bottom line, in a terminal?
@@ -182,108 +169,27 @@ pub fn main_window(display_input: Arc<RwLock<DisplayInput>>, rx: Receiver<()>, t
 
             // println!("key pressed: {} / {:?}", keyval, keystate);
             match editor_state.get().mode {
-                Mode::Command => {
-                    let mut command_str = command.write().unwrap();
-                    if keyval == 0xff0d {
-                        event_sender.send(Command { command: command_str.clone() }).unwrap();
-                        println!("Sent command: {}", command_str.as_str());
-                        command_str.clear();
-                        editor_state.set(EditorState { mode: Mode::Viewer });
-                        println!("Mode changed to Viewer");
-                        window_key.queue_draw();
-                    } else if keyval == 0xff1b {
-                        command_str.clear();
-                        editor_state.set(EditorState { mode: Mode::Viewer });
-                        window_key.queue_draw();
-                    } else if keyval == 0xff08 {
-                        command_str.pop();
-                        window_key.queue_draw();
-                    }
-                    else if keyval < 128 {
-                        match char::from_u32(keyval) {
-                            Some(c) => {
-                                if !c.is_control() {
-                                    command_str.push(c);
-                                    window_key.queue_draw();
-                                }
-                            }
-                            None => {}
-                        }
-                    }
-                }
-                Mode::Backend => {
+                Mode::Regular => {
                     event_sender.send(KeyPress { key: keyval, modifier: keystate }).unwrap();
                 }
-                Mode::Viewer => {
-                    if movement_keys.contains(&keyval) {
-                        let move_vec = match keyval {
-                            104 => { Vector2::new(20., 0.) }
-                            106 => { Vector2::new(0., -20.) }
-                            107 => { Vector2::new(0., 20.) }
-                            108 => { Vector2::new(-20., 0.) }
-                            _ => { unreachable!() }
-                        };
-                        display_data.set(display_data.get().translate(move_vec));
-                        window_key.queue_draw();
-                    } else if zoom_keys.contains(&keyval) {
-                        let zoom_fact = match keyval {
-                            43 => { 1.5 }
-                            45 => { 0.75 }
-                            _ => { unreachable!() }
-                        };
-                        display_data.set(display_data.get().zoom(zoom_fact));
-                        window_key.queue_draw();
-                    } else if rotate_keys.contains(&keyval) {
-                        let rotation = match keyval {
-                            60 => { 0.25 * PI }
-                            62 => { -0.25 * PI }
-                            _ => { unreachable!() }
-                        };
-                        display_data.set(display_data.get().rotate(rotation));
-                        window_key.queue_draw();
-                    } else if keyval == u32::from(':') {
-                        editor_state.set(EditorState { mode: Mode::Command });
-                        println!("Mode changed to Command");
-                        window_key.queue_draw();
-                    } else if keyval == u32::from('q') {
-                        gtk::main_quit();
-                    } else if keyval == u32::from('f') {
-                        editor_state.set(EditorState { mode: Mode::Selector });
-                        println!("Mode changed to Selector");
-                        window_key.queue_draw();
-                    }
-                }
                 Mode::Selector => {
-                    let mut command_str = command.write().unwrap();
-                    if keyval == 0xff0d {
-                        event_sender.send(Selection { key: u32::from_str(command_str.as_str()).unwrap() }).unwrap();
-                        println!("Sent selection: {}", command_str.as_str());
-                        command_str.clear();
-                        editor_state.set(EditorState { mode: Mode::Viewer });
-                        println!("Mode changed to Viewer");
-                        window_key.queue_draw();
-                    } else if keyval == 0xff1b {
-                        command_str.clear();
-                        editor_state.set(EditorState { mode: Mode::Viewer });
-                        window_key.queue_draw();
-                    } else if keyval == 0xff08 {
-                        command_str.pop();
-                        window_key.queue_draw();
-                    }
-                    else if keyval < 128 {
-                        match char::from_u32(keyval) {
-                            Some(c) => {
-                                if c.is_digit(10) {
-                                    command_str.push(c);
-                                    window_key.queue_draw();
-                                }
-                            }
-                            None => {}
+                    // roughly
+                    let mut selector = match something {
+                        None => { new selector }
+                        Some(v) => v
+                    };
+                    match selector.add_key(keyval) {
+                        Finished(node_id) => {
+                            event_sender.send(Selection { node_id: node_id });
+                            mode = Mode::Regular;
+                            queue_draw;
+                        }
+                        Continue => {
+                            queue_draw;
                         }
                     }
                 }
             }
-
 
             Inhibit(false)
         });
@@ -336,14 +242,6 @@ fn display(display_input: Arc<RwLock<DisplayInput>>,
     }
     match window_state.editor_state.get().mode{
         // special case logic for drawing the selection labels and the command string
-        Mode::Command => {
-            let command_str = window_state.command.read().unwrap();
-            let mut displ_command = ":".to_string();
-            displ_command.push_str(command_str.as_str());
-            displ_command.push('\u{2588}');
-            cr.move_to(0., (disp_rect.height as f64) - 7.);
-            cr.show_text(displ_command.as_str());
-        }
         Mode::Selector => {
             let display_data = window_state.display_data.get();
             for &(p, i) in selectors.iter() {
@@ -357,13 +255,6 @@ fn display(display_input: Arc<RwLock<DisplayInput>>,
                 cr.set_source_rgb(0.2, 0.2, 0.2);
                 cr.show_text(format!("{}", i).as_str());
             }
-            cr.set_source_rgb(0.9, 0.9, 0.9);
-            let command_str = window_state.command.read().unwrap();
-            let mut displ_command = "select:".to_string();
-            displ_command.push_str(command_str.as_str());
-            displ_command.push('\u{2588}');
-            cr.move_to(0., (disp_rect.height as f64) - 7.);
-            cr.show_text(displ_command.as_str());
         }
         _ => {}
     }

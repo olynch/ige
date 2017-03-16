@@ -28,10 +28,10 @@ const DEFAULT_L: f64 = 0.8;
 /// This is essentially a stream processor. When the source_graph changes
 /// (whenever we receive a message) we process the source_graph and render it
 /// to a vector format in DisplayInput
-pub fn layout_thread<N, E>(source_graph: Arc<RwLock<Graph<N, E>>>,
-                           display_input: Arc<RwLock<DisplayInput>>,
-                           rx: Receiver<()>,
-                           tx: Sender<()>) -> () {
+pub fn run_layout_engine<N, E>(source_graph: Arc<RwLock<Graph<N, E>>>,
+                               display_input: Arc<RwLock<DisplayInput>>,
+                               rx: Receiver<()>,
+                               tx: Sender<()>) -> () {
     loop {
         let _ = rx.recv().unwrap();
         let mut display_input = display_input.write().unwrap();

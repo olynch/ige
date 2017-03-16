@@ -19,11 +19,11 @@ rmp-serde = "0.12"
 serde_derive = "0.9"
 argparse = "*"
 
-[[bin]]
-name = "example"
+#[[bin]]
+#name = "example"
 
-[[bin]]
-name = "testing"
+#[[bin]]
+#name = "testing"
 
 [[bin]]
 name = "ige_frontend"
