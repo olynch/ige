@@ -32,7 +32,7 @@ executable          echoc
                 , optparse-applicative
                 , unix
                 , network
-                , messagepack
+                , data-msgpack
 
   ghc-options:    -threaded -O2 -rtsopts -with-rtsopts=-N
 
@@ -49,9 +49,9 @@ executable          echos
                 , optparse-applicative
                 , unix
                 , network
-                , messagepack
-                , cereal
-                , cereal-conduit
+                , binary-conduit
+                , binary
+                , data-msgpack
                 , conduit
                 , conduit-combinators
                 , conduit-extra

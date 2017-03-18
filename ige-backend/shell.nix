@@ -4,20 +4,41 @@ let
 
   inherit (nixpkgs) pkgs;
 
-  f = { mkDerivation, aeson, base, bytestring, cereal
-      , cereal-conduit, conduit, conduit-combinators, conduit-extra
-      , messagepack, network, optparse-applicative, stdenv, text, unix
+  f = { mkDerivation, aeson, base, binary-conduit, bytestring
+      , conduit, conduit-combinators, conduit-extra
+      , network, optparse-applicative, stdenv, text, unix
+      , binary, containers, data-binary-ieee754, deepseq, groom
+      , hashable, hspec, QuickCheck, unordered-containers, vector, void
       }:
+      let
+        data-msgpack = import ./hs-msgpack {
+          inherit mkDerivation;
+          inherit base;
+          inherit binary;
+          inherit bytestring;
+          inherit containers;
+          inherit data-binary-ieee754;
+          inherit deepseq;
+          inherit groom;
+          inherit hashable;
+          inherit hspec;
+          inherit QuickCheck;
+          inherit stdenv;
+          inherit text;
+          inherit unordered-containers;
+          inherit vector;
+          inherit void;
+        };
+      in
       mkDerivation {
-        pname = "pipes-hs";
+        pname = "ige-backend";
         version = "0.0.0";
         src = ./.;
         isLibrary = false;
         isExecutable = true;
         executableHaskellDepends = [
-          aeson base bytestring cereal cereal-conduit conduit
-          conduit-combinators conduit-extra messagepack network
-          optparse-applicative text unix
+          aeson base binary-conduit bytestring conduit conduit-combinators
+          conduit-extra data-msgpack network optparse-applicative text unix
         ];
         license = stdenv.lib.licenses.unfree;
       };

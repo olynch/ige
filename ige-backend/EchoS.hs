@@ -7,12 +7,11 @@ import Control.Monad (unless)
 import Data.Semigroup ((<>))
 import Network.Socket hiding (send, recv, sendTo, recvFrom)
 import Network.Socket.ByteString
-import Data.Serialize.Get
-import Data.Serialize.Put
-import Data.Serialize
-import Data.Conduit.Cereal
+import Data.Conduit.Serialization.Binary
 import Data.Conduit.Network.Unix
 import Conduit
+import Data.Char
+import Numeric (showHex)
 
 data Connection = Connection { socketPath :: FilePath }
 
@@ -38,17 +37,22 @@ inspect a = do
 {-  case ev of-}
 {-    (KeyPress key modifier) -> -}
 
+printBytes :: B.ByteString -> IO B.ByteString
+printBytes bs = do
+  putStrLn $ show $ map (flip showHex "") $ map ord $ B.unpack $ bs
+  return bs
+
 echoC :: AppDataUnix -> IO ()
 echoC ad = do
   runConduit $
     appSource ad
+    .| mapMC printBytes
+    .| (conduitDecode :: Conduit B.ByteString IO Event)
     .| mapMC inspect
-    .| conduitGet2 (get :: Get Command)
-    {-.| mapMC inspect-}
-    {-.| conduitPut (put :: Putter Command)-}
-    {-.| mapMC inspect-}
-    .| mapC show
-    .| mapC B.pack
+    .| mapC (\_ -> GetSelection)
+    .| mapMC inspect
+    .| (conduitEncode :: Conduit ControlMsg IO B.ByteString)
+    .| mapMC printBytes
     .| appSink ad
 
 main :: IO ()

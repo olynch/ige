@@ -52,7 +52,7 @@ fn main() {
     let (tx_sock_incoming, rx_sock_incoming) = mpsc::channel();
     let (tx_sock_outgoing, rx_sock_outgoing) = mpsc::channel();
 
-    thread::spawn(move || {
+    let read_thread = thread::spawn(move || {
         let mut controlmsg_stream = rmp_serde::decode::Deserializer::from_read(read_stream);
         loop {
             let cmd: ControlMsg = serde::Deserialize::deserialize(&mut controlmsg_stream).unwrap();
@@ -84,4 +84,6 @@ fn main() {
             }
         }
     });
+
+    read_thread.join();
 }
