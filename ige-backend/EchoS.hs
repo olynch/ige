@@ -31,11 +31,16 @@ inspect a = do
   print a
   return a
 
-{-processEvents :: ConduitM Event Command IO ()-}
-{-processEvents = do-}
-{-  ev <- takeC 1-}
-{-  case ev of-}
-{-    (KeyPress key modifier) -> -}
+processEvents :: ConduitM Event ControlMsg IO ()
+processEvents = do
+    mev <- await
+    case mev of
+      Nothing -> return ()
+      Just ev -> case ev of
+        (KeyPress key modifier) -> do
+          if key == (ord 'a') then yield $ GraphMsg AddNode else yield $ DispMsg GetSelection
+        otherwise -> yield $ DispMsg GetSelection
+    processEvents
 
 printBytes :: B.ByteString -> IO B.ByteString
 printBytes bs = do
@@ -49,7 +54,7 @@ echoC ad = do
     .| mapMC printBytes
     .| (conduitDecode :: Conduit B.ByteString IO Event)
     .| mapMC inspect
-    .| mapC (\_ -> GetSelection)
+    .| processEvents
     .| mapMC inspect
     .| (conduitEncode :: Conduit ControlMsg IO B.ByteString)
     .| mapMC printBytes

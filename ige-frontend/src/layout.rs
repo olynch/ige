@@ -13,6 +13,7 @@ use cgmath::{Point2, Vector2};
 use cgmath::InnerSpace;
 
 use display::{Shape, DisplayInput};
+use messages::DisplayCommand;
 
 /// We might add different types of edges in the simulation
 enum LEdge {
@@ -31,7 +32,7 @@ const DEFAULT_L: f64 = 0.8;
 pub fn run_layout_engine<N, E>(source_graph: Arc<RwLock<Graph<N, E>>>,
                                display_input: Arc<RwLock<DisplayInput>>,
                                rx: Receiver<()>,
-                               tx: Sender<()>) -> () {
+                               tx: Sender<DisplayCommand>) -> () {
     loop {
         let _ = rx.recv().unwrap();
         let mut display_input = display_input.write().unwrap();
@@ -39,7 +40,7 @@ pub fn run_layout_engine<N, E>(source_graph: Arc<RwLock<Graph<N, E>>>,
         let mut layout_graph = initialize_layout(&source_graph);
         iter_fd_step(&mut Frozen::new(&mut layout_graph));
         render_layout(&layout_graph, &mut display_input);
-        tx.send(()).unwrap();
+        tx.send(DisplayCommand::Refresh).unwrap();
     }
 }
 

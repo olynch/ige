@@ -9,9 +9,14 @@ extern crate serde;
 #[macro_use] extern crate serde_derive;
 extern crate rmp_serde;
 
-//pub mod display;
-//pub mod layout;
+pub mod display;
+pub mod layout;
 pub mod messages;
+pub mod selector;
+pub mod logic;
+
+#[macro_use]
+pub mod util;
 
 #[cfg(test)]
 mod tests {

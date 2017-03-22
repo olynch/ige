@@ -1,11 +1,15 @@
-use serde::{Serialize, Deserialize};
-
 // We should have some way of threading events and controlmsgs
 // so that we can have responses to specific messages
 
 /// The type of messages we send from Haskell to Rust
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub enum ControlMsg {
+    DispMsg (DisplayCommand),
+    GraphMsg (GraphCommand)
+}
+
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+pub enum GraphCommand {
     AddNode,
     DelNode {
         node_id: u32
@@ -16,18 +20,19 @@ pub enum ControlMsg {
     },
     DelEdge {
         edge_id: u32,
-    },
-    GetSelection,
-    Zoom {
-        percent: f64
-    },
-    Rotate {
-        radians: f64
-    },
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+pub enum DisplayCommand {
+    Refresh,
+    Zoom { percent: f64 },
+    Rotate { radians: f64 },
     Translate {
         x: f64,
         y: f64
-    }
+    },
+    GetSelection
 }
 
 /// The type of messages we send from Rust to Haskell
