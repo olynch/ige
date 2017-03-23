@@ -194,6 +194,7 @@ pub fn main_window(display_input: Arc<RwLock<DisplayInput>>, rx: Receiver<Displa
                         Some (ch) => {
                             match selector.add_char(ch) {
                                 SelectionResult::Canceled => {
+                                    event_sender.send(SelectionCancelled);
                                     EditorMode::Regular
                                 }
                                 SelectionResult::NodeId (id) => {
@@ -206,6 +207,7 @@ pub fn main_window(display_input: Arc<RwLock<DisplayInput>>, rx: Receiver<Displa
                             }
                         }
                         None => {
+                            event_sender.send(SelectionCancelled);
                             EditorMode::Regular
                         }
                     }

@@ -4,40 +4,8 @@ cabal-version:      >= 1.8
 build-type:         Simple
 extra-source-files:
 
-executable          pipes
-  main-is:          Main.hs
-  other-modules:
-
-  ghc-options:      -Wall -fwarn-tabs -O2
-
-  build-depends:  base
-                , aeson
-                , text
-                , bytestring
-                , optparse-applicative
-                , unix
-
-  ghc-options:    -threaded -O2 -rtsopts -with-rtsopts=-N
-
-executable          echoc
-  main-is:          EchoC.hs
-  other-modules:
-
-  ghc-options:      -Wall -fwarn-tabs -O2
-
-  build-depends:  base
-                , aeson
-                , text
-                , bytestring
-                , optparse-applicative
-                , unix
-                , network
-                , data-msgpack
-
-  ghc-options:    -threaded -O2 -rtsopts -with-rtsopts=-N
-
-executable          echos
-  main-is:          EchoS.hs
+executable          ige-backend
+  main-is:          IgeBackend.hs
   other-modules: Messages
 
   ghc-options:      -Wall -fwarn-tabs -O2
@@ -55,5 +23,7 @@ executable          echos
                 , conduit
                 , conduit-combinators
                 , conduit-extra
+                , transformers
+                , containers
 
   ghc-options:    -threaded -O2 -rtsopts -with-rtsopts=-N

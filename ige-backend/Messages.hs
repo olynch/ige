@@ -55,6 +55,7 @@ instance Binary DisplayCommand where
 data Event =
   KeyPress { key :: Int, modifier :: Int }
   | Selection { selNodeId :: Int }
+  | SelectionCancelled
   deriving (Show, Eq, Generic)
 
 instance MessagePack Event where

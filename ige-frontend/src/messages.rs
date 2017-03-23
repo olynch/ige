@@ -44,5 +44,6 @@ pub enum Event {
     },
     Selection {
         node_id: u32
-    }
+    },
+    SelectionCancelled
 }
