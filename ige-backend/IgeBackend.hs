@@ -14,6 +14,8 @@ import Data.Char
 import Numeric (showHex)
 import Control.Monad.Trans.Maybe
 import qualified Data.Map.Strict as Map
+import System.Console.Haskeline
+import Data.Conduit.TMChan
 
 data Connection = Connection { socketPath :: FilePath }
 
@@ -39,10 +41,8 @@ getSelection = MaybeT $ do
   mmsg <- await
   return $ do
     msg <- mmsg
-    sel <- case msg of
-             (Selection ni) -> Just ni
-             _ -> Nothing
-    return sel
+    let (Selection ni) = msg
+    return ni
 
 addNode :: IgeC ()
 addNode = yield $ GraphMsg AddNode
@@ -59,6 +59,16 @@ addEdge = do
     ni2 <- getSelection
     return (ni1, ni2)
   doMaybe (yield . GraphMsg . uncurry AddEdge) ids
+
+repl :: TBMChan Event -> IO (String -> IO ())
+repl = do
+  minput <- getInputLine "> "
+  case minput of
+     Nothing -> return ()
+     Just ":q" -> return ()
+     Just input -> do
+       outputStrLn $ "Input was: " ++ input
+       loop
 
 keybindings :: Map.Map Int (IgeC ())
 keybindings = Map.fromList [(ord 'a', addNode), (ord 'd', delNode), (ord 'e', addEdge)]

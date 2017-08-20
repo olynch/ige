@@ -87,30 +87,26 @@ impl DisplayInput {
 #[derive(Copy, Clone)]
 struct DisplayData {
     translation: Vector2<f64>,
-    size_scaling: f64,
-    location_scaling: Matrix2<f64>
+    transformation: Matrix2<f64>
 }
 
 impl DisplayData {
     fn translate(self, v: Vector2<f64>) -> Self {
         DisplayData {
             translation: self.translation + v,
-            size_scaling: self.size_scaling,
-            location_scaling: self.location_scaling
+            transformation: self.location_scaling
         }
     }
     fn zoom(self, s: f64) -> Self {
         DisplayData {
             translation: self.translation,
-            size_scaling: self.size_scaling * s,
-            location_scaling: self.location_scaling * s
+            transformation: self.transformation * s
         }
     }
     fn rotate(self, d: f64) -> Self {
         DisplayData {
             translation: self.translation,
-            size_scaling: self.size_scaling,
-            location_scaling: self.location_scaling * Matrix2::new(d.cos(), -d.sin(), d.sin(), d.cos())
+            transformation: self.transformation * Matrix2::new(d.cos(), -d.sin(), d.sin(), d.cos())
         }
     }
 }

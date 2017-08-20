@@ -25,5 +25,6 @@ executable          ige-backend
                 , conduit-extra
                 , transformers
                 , containers
+                , stm-conduit
 
   ghc-options:    -threaded -O2 -rtsopts -with-rtsopts=-N
