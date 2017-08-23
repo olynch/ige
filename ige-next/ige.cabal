@@ -20,7 +20,8 @@ executable ige
   other-modules:       IGE.Types
                      , IGE.Control
                      , IGE.Layout
-                     , IGE.Drawing
+                     , IGE.Render
+                     , IGE.UI
   -- other-extensions:    
   build-depends:       base >=4.9 && <4.10
                      , protolude
@@ -36,6 +37,10 @@ executable ige
                      , stm-conduit
                      , stm-chans
                      , stm
+                     , array
+                     , mwc-random
+                     , mtl
+                     , transformers
 
   default-extensions:  NoImplicitPrelude
                      , FlexibleContexts

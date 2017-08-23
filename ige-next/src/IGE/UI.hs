@@ -8,7 +8,8 @@ import Control.Concurrent.STM
 import Control.Concurrent.STM.TBMChan
 
 import IGE.Types
-import IGE.Drawing
+import IGE.Render
+import IGE.Layout
 import IGE.Control
 
 runMainWindow :: Gr () () -> RM -> KeyBinding () -> IO ()
@@ -17,7 +18,7 @@ runMainWindow initGr initRM keybinding = do
   w <- windowNew
   da <- drawingAreaNew
   w `containerAdd` da
-  editorState <- newTVarIO $ EditorState initGr initRM 3 "" []
+  editorState <- newTVarIO $ EditorState initGr initRM 3 "" [] (layoutGr initGr)
   keyChan <- newTBMChanIO 16
 
   _ <- forkIO $ runKeyBinding keyChan editorState w keybinding
@@ -27,7 +28,8 @@ runMainWindow initGr initRM keybinding = do
   void $ (da `on` exposeEvent) $ liftIO $ do
     dw <- widgetGetDrawWindow da
     es <- readTVarIO editorState
-    renderWithDrawable dw $ renderEditorState es
+    dims <- drawableGetSize dw
+    renderWithDrawable dw $ renderEditorState es dims
     return True
 
   void $ (da `on` keyPressEvent) $ do

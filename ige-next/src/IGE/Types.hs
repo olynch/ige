@@ -8,6 +8,7 @@ import Lens.Micro.Platform
 import Control.Concurrent.STM
 import Conduit
 import Graphics.UI.Gtk (KeyVal)
+import qualified Data.Map.Strict as Map
 
 type ℂ = Complex Double
 
@@ -57,6 +58,7 @@ data EditorState = EditorState {
   , esNum :: Int
   , esCommand :: [Char] -- stored backwards
   , esLabels :: [([Char], Node)]
+  , esNodeMap :: Map.Map Node ℂ
   }
 
 makeLensesFor [
@@ -64,7 +66,8 @@ makeLensesFor [
   , ("esRM", "_rm")
   , ("esNum", "_num")
   , ("esCommand", "_cmd")
-  , ("esLabels", "_labels")] ''EditorState
+  , ("esLabels", "_labels")
+  , ("esNodeMap", "_nodeMap")] ''EditorState
 
 newtype IGEM a = IGEM { unIGEM :: ReaderT (TVar EditorState) IO a }
   deriving (Functor, Applicative, Monad, MonadIO, MonadReader (TVar EditorState))
@@ -83,4 +86,14 @@ runTVarState action = do
     writeTVar stateVar s'
     return a
 
-type KeyBinding = ConduitM KeyVal () IGEM
+runTVarReader :: (MonadReader (TVar s) m, MonadIO m) => Reader s a -> m a
+runTVarReader action = do
+  stateVar <- ask
+  liftIO $ atomically $ do
+    s <- readTVar stateVar
+    return $ runReader action s
+
+data RefreshType = LayoutChange | NoLayoutChange
+  deriving (Show, Eq)
+
+type KeyBinding = ConduitM KeyVal RefreshType IGEM
