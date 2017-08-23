@@ -24,6 +24,7 @@ executable ige
                      , IGE.UI
                      , IGE.Keys
                      , IGE.Lisp
+                     , IGE.Serialization
   -- other-extensions:    
   build-depends:       base >=4.9 && <4.10
                      , protolude
@@ -46,6 +47,9 @@ executable ige
                      , megaparsec
                      , text
                      , wl-pprint-text
+                     , aeson
+                     , bytestring
+                     , directory
 
   default-extensions:  NoImplicitPrelude
                      , FlexibleContexts

@@ -92,7 +92,7 @@ renderEditorState es dims = do
   let labels = es^._labels
   let nodeMap = (rm ^*) <$> es^._nodeMap
   renderBackground
-  renderNodes $ (_1 %~ (nodeMap Map.!)) <$> labNodes graph
   renderEdges $ ((_1 %~ (nodeMap Map.!)) . (_2 %~ (nodeMap Map.!))) <$> labEdges graph
+  renderNodes $ (_1 %~ (nodeMap Map.!)) <$> labNodes graph
   renderCommand dims (es^._cmd)
   renderLabels $ over _2 (nodeMap Map.!) <$> labels

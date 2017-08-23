@@ -2,7 +2,7 @@ module Main where
 
 import Protolude
 import Data.Graph.Inductive.PatriciaTree
-import Data.Graph.Inductive.Graph
+import Data.Graph.Inductive.Graph as Graph
 import IGE.Types
 import IGE.UI
 import IGE.Control
@@ -14,4 +14,4 @@ initRM :: RM
 initRM = RM (100 :+ 0) (100 :+ 100)
 
 main :: IO ()
-main = runMainWindow sampleGr initRM basicKeyBinding
+main = runMainWindow Graph.empty initRM textKeyBinding

@@ -105,9 +105,8 @@ runTVarState action = do
 runTVarReader :: (MonadReader (TVar s) m, MonadIO m) => Reader s a -> m a
 runTVarReader action = do
   stateVar <- ask
-  liftIO $ atomically $ do
-    s <- readTVar stateVar
-    return $ runReader action s
+  s <- liftIO $ readTVarIO stateVar
+  return $ runReader action s
 
 data RefreshType = LayoutChange | NoLayoutChange
   deriving (Show, Eq)
