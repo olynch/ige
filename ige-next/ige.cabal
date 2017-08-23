@@ -22,6 +22,8 @@ executable ige
                      , IGE.Layout
                      , IGE.Render
                      , IGE.UI
+                     , IGE.Keys
+                     , IGE.Lisp
   -- other-extensions:    
   build-depends:       base >=4.9 && <4.10
                      , protolude
@@ -41,6 +43,9 @@ executable ige
                      , mwc-random
                      , mtl
                      , transformers
+                     , megaparsec
+                     , text
+                     , wl-pprint-text
 
   default-extensions:  NoImplicitPrelude
                      , FlexibleContexts
@@ -51,6 +56,7 @@ executable ige
                      , TypeSynonymInstances
                      , FlexibleInstances
                      , RankNTypes
+                     , OverloadedStrings
   hs-source-dirs:      src
   default-language:    Haskell2010
   ghc-options:         -threaded

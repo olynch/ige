@@ -8,6 +8,7 @@ import Lens.Micro.Platform
 import Control.Concurrent.STM
 import Conduit
 import Graphics.UI.Gtk (KeyVal)
+import Graphics.Rendering.Cairo
 import qualified Data.Map.Strict as Map
 
 type ℂ = Complex Double
@@ -52,8 +53,23 @@ instance RigidMotion RM where
   (RM at1 trans1) ^.^ (RM at2 trans2) = RM (at1 * at2) (trans1 + (at1 * trans2))
   (RM at trans) ^* z = (z * at) + trans
 
-data EditorState = EditorState {
-    esGraph :: Gr () ()
+type NLabel = Text
+
+type ELabel = Text
+
+class Renderable a where
+  render :: a -> ℂ -> Render ()
+
+class Renderable a => RenderNode a where
+  renderNode :: a -> ℂ -> Render ()
+  renderNode = render
+
+class Renderable a => RenderEdge a where
+  renderEdge :: a -> ℂ -> Render ()
+  renderEdge = render
+
+data EditorState n e = EditorState {
+    esGraph :: Gr n e
   , esRM :: RM
   , esNum :: Int
   , esCommand :: [Char] -- stored backwards
@@ -69,13 +85,13 @@ makeLensesFor [
   , ("esLabels", "_labels")
   , ("esNodeMap", "_nodeMap")] ''EditorState
 
-newtype IGEM a = IGEM { unIGEM :: ReaderT (TVar EditorState) IO a }
-  deriving (Functor, Applicative, Monad, MonadIO, MonadReader (TVar EditorState))
+newtype IGEM n e a = IGEM { unIGEM :: ReaderT (TVar (EditorState n e)) IO a }
+  deriving (Functor, Applicative, Monad, MonadIO, MonadReader (TVar (EditorState n e)))
 
-runIGEM :: TVar EditorState -> IGEM a -> IO a
+runIGEM :: TVar (EditorState n e) -> IGEM n e a -> IO a
 runIGEM v m = runReaderT (unIGEM m) v
 
-type EditorM = State EditorState
+type EditorM n e = State (EditorState n e)
 
 runTVarState :: (MonadReader (TVar s) m, MonadIO m) => State s a -> m a
 runTVarState action = do
@@ -96,4 +112,4 @@ runTVarReader action = do
 data RefreshType = LayoutChange | NoLayoutChange
   deriving (Show, Eq)
 
-type KeyBinding = ConduitM KeyVal RefreshType IGEM
+type KeyBinding n e = ConduitM KeyVal RefreshType (IGEM n e)

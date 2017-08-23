@@ -21,8 +21,8 @@ import IGE.Types
 import IGE.Keys
 import IGE.Layout
 
-basicKeyMap :: Map.Map KeyVal (EditorM ())
-basicKeyMap = Map.fromList [
+navigationKeyMap :: Map.Map KeyVal (EditorM n e ())
+navigationKeyMap = Map.fromList [
     (xK_plus, _rm . _at *= ((10/9) :+ 0))
   , (xK_minus, _rm . _at *= ((9/10) :+ 0))
   , (xK_h, transRel (0.5 :+ 0))
@@ -33,7 +33,7 @@ basicKeyMap = Map.fromList [
   , (xK_less, _rm . _at *= (cis (- pi / 6)))
   ]
 
-transRel :: ℂ -> EditorM ()
+transRel :: ℂ -> EditorM n e ()
 transRel z = do
   r <- use $ _rm . _r
   _rm . _trans += (r :+ 0) * z
@@ -42,12 +42,12 @@ transRel z = do
 awaitOrFinish :: (Monad m) => a -> (i -> ConduitM i o m a) -> ConduitM i o m a
 awaitOrFinish x action = await >>= maybe (return x) action
 
-updateEditor :: EditorM () -> KeyBinding ()
+updateEditor :: EditorM n e () -> KeyBinding n e ()
 updateEditor em = do
   runTVarState em
   yield NoLayoutChange
 
-updateEditorLayout :: EditorM () -> KeyBinding ()
+updateEditorLayout :: EditorM n e () -> KeyBinding n e ()
 updateEditorLayout em = do
   runTVarState em
   yield LayoutChange
@@ -56,7 +56,7 @@ tailNonEmpty :: [a] -> [a]
 tailNonEmpty (x:y:xs) = y:xs
 tailNonEmpty xs = xs
 
-getString :: [Char] -> KeyBinding (Maybe [Char])
+getString :: [Char] -> KeyBinding n e (Maybe [Char])
 getString init = do
   updateEditor $ _cmd .= init
   loop
@@ -69,7 +69,6 @@ getString init = do
       | kv == xK_Escape = updateEditor (_cmd .= "") >> return Nothing
       | otherwise = loop
 
-    loop :: KeyBinding (Maybe [Char])
     loop = awaitOrFinish Nothing $ \kv -> 
       case keyToChar kv of
         (Just c) -> updateEditor (_cmd %= (c:)) >> loop
@@ -90,12 +89,12 @@ makeLabels n alphabet = helper n alphabet "" Seq.empty
         a :< rest -> helper (n + 1) alphabet a rest
         EmptyL -> []
 
-labelGraph :: Gr a b -> [([Char], Node)]
+labelGraph :: Gr n e -> [([Char], Node)]
 labelGraph gr = zip labels (nodes gr)
   where
     labels = makeLabels (length $ nodes gr) labelChars
 
-getNode :: KeyBinding (Maybe Node)
+getNode :: KeyBinding n e (Maybe Node)
 getNode = initLabels >> loop
   where
     initLabels = updateEditor $ do
@@ -115,14 +114,14 @@ getNode = initLabels >> loop
               loop
         Nothing -> reset >> return Nothing
 
-addNode :: KeyBinding ()
+addNode :: KeyBinding () e ()
 addNode = do
   updateEditorLayout $ do 
     n <- use _num
     _graph %= insNode (n, ())
     _num += 1
       
-linkNodes :: KeyBinding ()
+linkNodes :: KeyBinding n () ()
 linkNodes = do
   mnodes <- runMaybeT $ do
     lift $ updateEditor $ _cmd .= reverse "SELECT NODE 1"
@@ -137,18 +136,18 @@ linkNodes = do
     Nothing ->
       return ()
 
-deleteNode :: KeyBinding ()
+deleteNode :: KeyBinding n e ()
 deleteNode = do
   mnode <- getNode
   case mnode of
     Just n -> updateEditor $ _graph %= delNode n
     Nothing -> return ()
 
-basicKeyBinding :: KeyBinding ()
+basicKeyBinding :: KeyBinding () () ()
 basicKeyBinding = loop
   where
     loop = awaitOrFinish () $ \kv ->
-      case Map.lookup kv basicKeyMap of
+      case Map.lookup kv navigationKeyMap of
         (Just em) -> do
           updateEditor em
           loop
@@ -164,7 +163,7 @@ basicKeyBinding = loop
       | kv == xK_q = liftIO mainQuit >> return ()
       | otherwise = loop
 
-refresh :: (WidgetClass w) => w -> Consumer RefreshType IGEM ()
+refresh :: (WidgetClass w) => w -> Consumer RefreshType (IGEM n e) ()
 refresh widget = do
   rt <- await
   if rt == Just LayoutChange
@@ -175,9 +174,9 @@ refresh widget = do
   liftIO $ widgetQueueDraw widget
   refresh widget
 
-runKeyBinding :: (WidgetClass w) => TBMChan KeyVal -> TVar EditorState -> w -> KeyBinding () -> IO ()
+runKeyBinding :: (WidgetClass w, RenderNode n, RenderEdge e) => TBMChan KeyVal -> TVar (EditorState n e) -> w -> KeyBinding n e () -> IO ()
 runKeyBinding keyChan editorState w kb =
   runIGEM editorState $ runConduit $
       sourceTBMChan keyChan
-   .| basicKeyBinding
+   .| kb
    .| refresh w

@@ -12,7 +12,7 @@ import IGE.Render
 import IGE.Layout
 import IGE.Control
 
-runMainWindow :: Gr () () -> RM -> KeyBinding () -> IO ()
+runMainWindow :: (RenderNode n, RenderEdge e) => Gr n e -> RM -> KeyBinding n e () -> IO ()
 runMainWindow initGr initRM keybinding = do
   void initGUI
   w <- windowNew

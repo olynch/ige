@@ -11,6 +11,34 @@ import Graphics.Rendering.Cairo
 import Lens.Micro.Platform
 import qualified Data.Map.Strict as Map
 
+instance Renderable Text where
+  render s (x :+ y) = do
+    extents <- textExtents s
+    rectangle
+      (x - textMargin)
+      (y - (textExtentsHeight extents + textMargin))
+      (textExtentsWidth extents + (2 * textMargin))
+      (textExtentsHeight extents + (2 * textMargin))
+    setSourceRGB 0.1 0.1 0.1
+    fill
+    setSourceRGB 0.9 0.9 0.9
+    moveTo x y
+    showText s
+
+instance Renderable () where
+  render () (x :+ y) = do
+    arc x y nodeSize 0 (2 * pi)
+    fill
+
+instance RenderNode Text where
+
+instance RenderEdge Text where
+
+instance RenderNode () where
+
+instance RenderEdge () where
+  renderEdge _ _ = return ()
+
 nodeSize :: Double
 nodeSize = 4
 
@@ -19,21 +47,19 @@ renderBackground = do
   setSourceRGB 0.1 0.1 0.1
   paint
   setSourceRGB 0.9 0.9 0.9
-  selectFontFace "monospace" FontSlantNormal FontWeightNormal
+  selectFontFace ("monospace" :: Text) FontSlantNormal FontWeightNormal
   setFontSize 15
 
-renderNodes :: [ℂ] -> Render ()
-renderNodes nodes = do
-  forM_ nodes $ \(x :+ y) -> do
-    arc x y nodeSize 0 (2 * pi)
-    fill
+renderNodes :: (RenderNode a) => [(ℂ, a)] -> Render ()
+renderNodes nodes = mapM_ (uncurry $ flip renderNode) nodes
 
-renderEdges :: [(ℂ, ℂ)] -> Render ()
+renderEdges :: (RenderEdge a) => [(ℂ, ℂ, a)] -> Render ()
 renderEdges edges =
-  forM_ edges $ \((x0 :+ y0), (x1 :+ y1)) -> do
+  forM_ edges $ \(p1@(x0 :+ y0), p2@(x1 :+ y1), x) -> do
     moveTo x0 y0
     lineTo x1 y1
     stroke
+    renderEdge x $ (p1 + p2) / (2 :+ 0)
 
 renderCommand :: (Int, Int) -> [Char] -> Render ()
 renderCommand (w, h) s = do
@@ -59,14 +85,14 @@ renderLabels labels =
     moveTo x y
     showText s
 
-renderEditorState :: EditorState -> (Int, Int) -> Render ()
+renderEditorState :: (RenderNode n, RenderEdge e) => EditorState n e -> (Int, Int) -> Render ()
 renderEditorState es dims = do
   let rm = es^._rm
   let graph = es^._graph
   let labels = es^._labels
   let nodeMap = (rm ^*) <$> es^._nodeMap
   renderBackground
-  renderNodes $ (nodeMap Map.!) <$> nodes graph
-  renderEdges $ over both (nodeMap Map.!) <$> edges graph
+  renderNodes $ (_1 %~ (nodeMap Map.!)) <$> labNodes graph
+  renderEdges $ ((_1 %~ (nodeMap Map.!)) . (_2 %~ (nodeMap Map.!))) <$> labEdges graph
   renderCommand dims (es^._cmd)
   renderLabels $ over _2 (nodeMap Map.!) <$> labels

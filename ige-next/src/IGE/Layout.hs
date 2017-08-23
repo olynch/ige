@@ -93,7 +93,7 @@ initEdges g m = runSTArray $ do
   where
     n = length $ nodes g
 
-layoutGr :: Gr a b -> Map.Map Node ℂ
+layoutGr :: Gr n e -> Map.Map Node ℂ
 layoutGr g = Map.map (nodeVec !) nodeMap
   where
     (nodeMap, frozenNodes) = initNodes g
