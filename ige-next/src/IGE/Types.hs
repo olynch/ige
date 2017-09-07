@@ -11,6 +11,11 @@ import Graphics.UI.Gtk (KeyVal)
 import Graphics.Rendering.Cairo
 import qualified Data.Map.Strict as Map
 
+-- Refactoring ideas:
+-- - Use typeclass-based EditorState
+-- - Use StateT based Keybinding -- use hoisting to promote pure functions
+-- - 
+
 type ℂ = Complex Double
 
 class Translation a where
@@ -52,10 +57,6 @@ instance Amplitwist RM where
 instance RigidMotion RM where
   (RM at1 trans1) ^.^ (RM at2 trans2) = RM (at1 * at2) (trans1 + (at1 * trans2))
   (RM at trans) ^* z = (z * at) + trans
-
-type NLabel = Text
-
-type ELabel = Text
 
 class Renderable a where
   render :: a -> ℂ -> Render ()

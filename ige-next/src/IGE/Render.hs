@@ -11,6 +11,9 @@ import Graphics.Rendering.Cairo
 import Lens.Micro.Platform
 import qualified Data.Map.Strict as Map
 
+-- Refactoring ideas:
+-- - Use diagrams
+
 instance Renderable Text where
   render s (x :+ y) = do
     extents <- textExtents s
@@ -55,11 +58,11 @@ renderNodes nodes = mapM_ (uncurry $ flip renderNode) nodes
 
 renderEdges :: (RenderEdge a) => [(ℂ, ℂ, a)] -> Render ()
 renderEdges edges =
-  forM_ edges $ \(p1@(x0 :+ y0), p2@(x1 :+ y1), x) -> do
+  forM_ edges $ \(p1@(x0 :+ y0), p2@(x1 :+ y1), label) -> do
     moveTo x0 y0
     lineTo x1 y1
     stroke
-    renderEdge x $ (p1 + p2) / (2 :+ 0)
+    renderEdge label $ (p1 + p2) / (2 :+ 0)
 
 renderCommand :: (Int, Int) -> [Char] -> Render ()
 renderCommand (w, h) s = do
