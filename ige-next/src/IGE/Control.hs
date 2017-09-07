@@ -5,6 +5,7 @@ module IGE.Control
   )
   where
 
+import Prelude (String)
 import Protolude hiding (empty, readFile, writeFile)
 import qualified Data.Map.Strict as Map
 import Lens.Micro.Platform
@@ -35,8 +36,8 @@ navigationKeyMap = Map.fromList [
   , (xK_j, transRel (0 :+ (-0.5)))
   , (xK_k, transRel (0 :+ 0.5))
   , (xK_l, transRel ((-0.5) :+ 0))
-  , (xK_greater, _rm . _at *= (cis (pi / 6)))
-  , (xK_less, _rm . _at *= (cis (- pi / 6)))
+  , (xK_greater, _rm . _at *= cis (pi / 6))
+  , (xK_less, _rm . _at *= cis ((- pi) / 6))
   ]
 
 transRel :: ℂ -> EditorM n e ()
@@ -64,7 +65,7 @@ tailButN :: Int -> [a] -> [a]
 tailButN n xs = if length theTail < n then xs else theTail
   where theTail = tailDef [] xs
 
-getString :: [Char] -> KeyBinding n e (Maybe [Char])
+getString :: String -> KeyBinding n e (Maybe String)
 getString init' = do
   updateEditor $ _cmd .= init
   loop
@@ -87,10 +88,10 @@ getString init' = do
 
 labelChars = "asdfghjkl"
 
-makeLabels :: Int -> [Char] -> [[Char]]
+makeLabels :: Int -> String -> [String]
 makeLabels n alphabet = helper n alphabet "" Seq.empty
   where
-    helper :: Int -> [Char] -> [Char] -> Seq [Char] -> [[Char]]
+    helper :: Int -> String -> String -> Seq String -> [String]
     helper 0 _ _ queue = reverse <$> toList queue
     helper n (c:cs) postfix queue =
       helper (n - 1) cs postfix (queue |> (c:postfix))
@@ -99,7 +100,7 @@ makeLabels n alphabet = helper n alphabet "" Seq.empty
         a :< rest -> helper (n + 1) alphabet a rest
         EmptyL -> []
 
-labelGraph :: Gr n e -> [([Char], Node)]
+labelGraph :: Gr n e -> [(String, Node)]
 labelGraph gr = zip labels (nodes gr)
   where
     labels = makeLabels (length $ nodes gr) labelChars
@@ -125,7 +126,7 @@ getNode = initLabels >> loop
         Nothing -> reset >> return Nothing
 
 addNode :: KeyBinding () e ()
-addNode = do
+addNode =
   updateEditorLayout $ do 
     n <- use _num
     _graph %= insNode (n, ())
