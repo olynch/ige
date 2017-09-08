@@ -1,3 +1,0 @@
-[submodule "ige-backend/hs-msgpack"]
-	path = ige-backend/hs-msgpack
-	url = git://github.com/olynch/hs-msgpack.git
