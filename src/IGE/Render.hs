@@ -66,10 +66,9 @@ renderEdges edges =
 
 renderCommand :: (Int, Int) -> [Char] -> Render ()
 renderCommand (w, h) s = do
-  let s' = reverse s
-  extents <- textExtents s'
+  extents <- textExtents s
   moveTo 0 ((fromIntegral h) - (textExtentsHeight extents))
-  showText s'
+  showText s
 
 textMargin = 3
 
@@ -97,5 +96,5 @@ renderEditorState es dims = do
   renderBackground
   renderEdges $ ((_1 %~ (nodeMap Map.!)) . (_2 %~ (nodeMap Map.!))) <$> labEdges graph
   renderNodes $ (_1 %~ (nodeMap Map.!)) <$> labNodes graph
-  renderCommand dims (es^._cmd)
+  renderCommand dims (es^._prompt ++ reverse es^._cmd)
   renderLabels $ over _2 (nodeMap Map.!) <$> labels

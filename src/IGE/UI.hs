@@ -1,4 +1,6 @@
-module IGE.UI where
+module IGE.UI (
+  runMainWindow
+) where
 
 import Protolude hiding (on)
 import Graphics.UI.Gtk hiding (get)

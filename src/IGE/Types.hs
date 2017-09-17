@@ -73,7 +73,8 @@ data EditorState n e = EditorState {
     esGraph :: Gr n e
   , esRM :: RM
   , esNum :: Int
-  , esCommand :: [Char] -- stored backwards
+  , esCmd :: [Char] -- stored backwards
+  , esPrompt :: [Char] -- stored forwards
   , esLabels :: [([Char], Node)]
   , esNodeMap :: Map.Map Node ℂ
   }
@@ -82,7 +83,8 @@ makeLensesFor [
     ("esGraph", "_graph")
   , ("esRM", "_rm")
   , ("esNum", "_num")
-  , ("esCommand", "_cmd")
+  , ("esCmd", "_cmd")
+  , ("esPrompt", "_prompt")
   , ("esLabels", "_labels")
   , ("esNodeMap", "_nodeMap")] ''EditorState
 

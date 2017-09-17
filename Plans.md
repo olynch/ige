@@ -8,3 +8,7 @@
 # Implementation:
 - [ ] refactor so that each of the above applications can share lots of code
 - [ ] optimize layout and allow for swappable layout engines
+
+# Documentation/Infrastructure:
+- [ ] put package versions in cabal file
+- [ ] publish to hackage
