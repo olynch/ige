@@ -14,13 +14,21 @@ import IGE.Render
 import IGE.Layout
 import IGE.Control
 
-runMainWindow :: (RenderNode n, RenderEdge e) => Gr n e -> RM -> KeyBinding n e () -> IO ()
+runMainWindow :: (NodeType n, EdgeType e) => Gr n e -> RM -> KeyBinding n e () -> IO ()
 runMainWindow initGr initRM keybinding = do
   void initGUI
   w <- windowNew
   da <- drawingAreaNew
   w `containerAdd` da
-  editorState <- newTVarIO $ EditorState initGr initRM 3 "" [] (layoutGr initGr)
+  editorState <- newTVarIO $ EditorState {
+      esGraph = initGr
+    , esRM = initRM
+    , esNum = noNodes initGr
+    , esCmd = ""
+    , esPrompt = ""
+    , esLabels = []
+    , esNodeMap = layoutGr initGr
+  }
   keyChan <- newTBMChanIO 16
 
   _ <- forkIO $ runKeyBinding keyChan editorState w keybinding

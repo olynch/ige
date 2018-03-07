@@ -27,7 +27,7 @@ executable ige
 --                     , IGE.Lisp
                      , IGE.Serialization
   -- other-extensions:    
-  build-depends:       base >= 4.9 && < 4.10
+  build-depends:       base >= 4.10 && < 4.11
                      , cairo >= 0.13
                      , gtk >= 0.14
                      , protolude >= 0.1

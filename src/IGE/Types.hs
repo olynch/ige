@@ -1,6 +1,7 @@
 module IGE.Types where
 
 import Protolude
+import Prelude (String)
 import Data.Complex
 import Data.Graph.Inductive.Graph
 import Data.Graph.Inductive.PatriciaTree
@@ -9,6 +10,8 @@ import Control.Concurrent.STM
 import Conduit
 import Graphics.UI.Gtk (KeyVal)
 import Graphics.Rendering.Cairo
+import Data.Aeson (ToJSON, FromJSON)
+import Control.Monad.Trans.Maybe
 import qualified Data.Map.Strict as Map
 
 -- Refactoring ideas:
@@ -115,3 +118,31 @@ data RefreshType = LayoutChange | NoLayoutChange
   deriving (Show, Eq)
 
 type KeyBinding n e = ConduitM KeyVal RefreshType (IGEM n e)
+
+awaitOrFinish :: (Monad m) => a -> (i -> ConduitM i o m a) -> ConduitM i o m a
+awaitOrFinish x action = await >>= maybe (return x) action
+
+updateEditor :: EditorM n e a -> KeyBinding n e a
+updateEditor em = do
+  x <- runTVarState em
+  yield NoLayoutChange
+  return x
+
+updateEditorLayout :: EditorM n e a -> KeyBinding n e a
+updateEditorLayout em = do
+  x <- runTVarState em
+  yield LayoutChange
+  return x
+
+class Inputable a where
+  readInput :: MaybeT (KeyBinding n e) a
+  readInputPrompt :: String -> MaybeT (KeyBinding n e) a
+  readInputPrompt s = MaybeT $ do
+    updateEditor (_prompt .= s)
+    i <- runMaybeT readInput
+    updateEditor (_prompt .= "")
+    return i
+
+class (Inputable n, ToJSON n, FromJSON n, RenderNode n) => NodeType n where
+
+class (Inputable e, ToJSON e, FromJSON e, RenderEdge e) => EdgeType e where

@@ -96,5 +96,5 @@ renderEditorState es dims = do
   renderBackground
   renderEdges $ ((_1 %~ (nodeMap Map.!)) . (_2 %~ (nodeMap Map.!))) <$> labEdges graph
   renderNodes $ (_1 %~ (nodeMap Map.!)) <$> labNodes graph
-  renderCommand dims (es^._prompt ++ reverse es^._cmd)
+  renderCommand dims (es^._prompt ++ reverse (es^._cmd))
   renderLabels $ over _2 (nodeMap Map.!) <$> labels

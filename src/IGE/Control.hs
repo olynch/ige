@@ -1,7 +1,6 @@
 module IGE.Control 
   ( runKeyBinding
   , basicKeyBinding
-  , textKeyBinding
   )
   where
 
@@ -27,30 +26,7 @@ import IGE.Types
 import IGE.Keys
 import IGE.Layout
 import IGE.Serialization
-
-awaitOrFinish :: (Monad m) => a -> (i -> ConduitM i o m a) -> ConduitM i o m a
-awaitOrFinish x action = await >>= maybe (return x) action
-
-updateEditor :: EditorM n e a -> KeyBinding n e a
-updateEditor em = do
-  x <- runTVarState em
-  yield NoLayoutChange
-  return x
-
-updateEditorLayout :: EditorM n e a -> KeyBinding n e a
-updateEditorLayout em = do
-  x <- runTVarState em
-  yield LayoutChange
-  return x
-
-class Inputable a where
-  readInput :: MaybeT (KeyBinding n e) a
-  readInputPrompt :: String -> MaybeT (KeyBinding n e) a
-  readInputPrompt s = do
-    updateEditor (_prompt .= s)
-    i <- readInput
-    updateEditor (_prompt .= "")
-    return i
+import IGE.Render
 
 instance Inputable Node where
   readInput = MaybeT (initLabels >> loop)
@@ -92,8 +68,7 @@ labelGraph gr = zip labels (nodes gr)
     labels = makeLabels (length $ nodes gr) labelChars
 
 instance Inputable String where
-  readInput = MaybeT do
-    updateEditor $ _cmd .= init
+  readInput = MaybeT $ do
     loop
     where
       handleInput kv
@@ -118,37 +93,45 @@ instance Inputable () where
 instance Inputable Text where
   readInput = pack <$> readInput
 
+instance NodeType Text where
+
+instance EdgeType Text where
+
+instance NodeType () where
+
+instance EdgeType () where
+
 -- to do: refactor these into pure code, and make a new type for "action that could fail"
 
-addNode :: (Inputable n) => KeyBinding n e ()
-addNode = runMaybeT $ do
+addNode :: (Inputable n) => MaybeT (KeyBinding n e) ()
+addNode = do
   label <- readInputPrompt "label: "
   lift $ updateEditorLayout $ do 
     n <- use _num
     _graph %= insNode (n, label)
     _num += 1
       
-linkNodes :: (Inputable e) => KeyBinding n e ()
-linkNodes = runMaybeT $ do
+linkNodes :: (Inputable e) => MaybeT (KeyBinding n e) ()
+linkNodes = do
   n1 <- readInputPrompt "SELECT NODE 1"
   n2 <- readInputPrompt "SELECT NODE 2"
   label <- readInputPrompt "label: "
   lift $ updateEditorLayout $ _graph %= insEdge (n1, n2, label)
 
-deleteNode :: KeyBinding n e ()
-deleteNode = runMaybeT $ do
+deleteNode :: MaybeT (KeyBinding n e) ()
+deleteNode = do
   node <- readInput
   lift $ updateEditor $ _graph %= delNode node
 
-readGraph :: (FromJSON n, FromJSON e) => KeyBinding n e ()
-readGraph = runMaybeT $ do
+readGraph :: (FromJSON n, FromJSON e) => MaybeT (KeyBinding n e) ()
+readGraph = do
   filename <- readInputPrompt "filename: "
   liftIO (doesFileExist filename) >>= guard
-  newgraph <- graphFromBS <$> liftIO (readFile filename)
+  newgraph <- MaybeT (graphFromBS <$> liftIO (readFile filename))
   lift $ updateEditorLayout $ _graph .= newgraph
   
-writeGraph :: (ToJSON n, ToJSON e) => KeyBinding n e ()
-writeGraph = runMaybeT $ do
+writeGraph :: (ToJSON n, ToJSON e) => MaybeT (KeyBinding n e) ()
+writeGraph = do
   fn <- readInputPrompt "filename: "
   g <- lift $ runTVarReader $ view _graph
   liftIO $ writeFile fn $ graphToBS g
@@ -170,7 +153,7 @@ navigationKeyMap = Map.fromList [
   , (xK_less, _rm . _at *= cis ((- pi) / 6))
   ]
 
-basicKeyBinding :: (Inputable n, Inputable e) => KeyBinding n e ()
+basicKeyBinding :: (NodeType n, EdgeType e) => KeyBinding n e ()
 basicKeyBinding = loop
   where
     loop = awaitOrFinish () $ \kv ->
@@ -181,14 +164,15 @@ basicKeyBinding = loop
         Nothing -> handleSpecial kv
     handleSpecial kv
       | kv == xK_colon = do
-        cmd <- getString ":"
-        print cmd
+        runMaybeT $ do
+          cmd <- readInputPrompt ":"
+          putText cmd
         loop
-      | kv == xK_a = addNode >> loop
-      | kv == xK_c = linkNodes >> loop
-      | kv == xK_d = deleteNode >> loop
-      | kv == xK_w = writeGraph >> loop
-      | kv == xK_o = readGraph >> loop
+      | kv == xK_a = runMaybeT addNode >> loop
+      | kv == xK_c = runMaybeT linkNodes >> loop
+      | kv == xK_d = runMaybeT deleteNode >> loop
+      | kv == xK_w = runMaybeT writeGraph >> loop
+      | kv == xK_o = runMaybeT readGraph >> loop
       | kv == xK_q = liftIO mainQuit >> return ()
       | otherwise = loop
 
@@ -204,7 +188,7 @@ refresh widget = do
   refresh widget
 
 runKeyBinding ::
-  (WidgetClass w, RenderNode n, RenderEdge e) => 
+  (WidgetClass w, NodeType n, EdgeType e) => 
   TBMChan KeyVal
   -> TVar (EditorState n e)
   -> w

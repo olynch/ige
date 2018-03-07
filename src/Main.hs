@@ -14,4 +14,4 @@ initRM :: RM
 initRM = RM (100 :+ 0) (100 :+ 100)
 
 main :: IO ()
-main = runMainWindow Graph.empty initRM textKeyBinding
+main = runMainWindow (Graph.empty :: Gr () ()) initRM basicKeyBinding
