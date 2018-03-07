@@ -1,4 +1,4 @@
-{ nixpkgs ? import <nixpkgs> {}, compiler ? "default" }:
+{ nixpkgs ? import <nixpkgs> {}, compiler ? "default", doBenchmark ? false }:
 
 let
 
@@ -7,8 +7,8 @@ let
   f = { mkDerivation, aeson, array, base, bytestring, cairo
       , conduit, conduit-combinators, containers, directory, fgl, gtk
       , linear, megaparsec, microlens-platform, mtl, mwc-random
-      , optparse-applicative, protolude, stdenv, stm, stm-chans
-      , stm-conduit, text, transformers, wl-pprint-text
+      , protolude, stdenv, stm, stm-chans, stm-conduit, text
+      , transformers, wl-pprint-text
       }:
       mkDerivation {
         pname = "ige";
@@ -19,9 +19,11 @@ let
         executableHaskellDepends = [
           aeson array base bytestring cairo conduit conduit-combinators
           containers directory fgl gtk linear megaparsec microlens-platform
-          mtl mwc-random optparse-applicative protolude stm stm-chans
-          stm-conduit text transformers wl-pprint-text
+          mtl mwc-random protolude stm stm-chans stm-conduit text
+          transformers wl-pprint-text
         ];
+        homepage = "https://github.com/olynch/ige";
+        description = "An keyboard-driven interactive graph editor";
         license = stdenv.lib.licenses.gpl3;
       };
 
@@ -29,7 +31,9 @@ let
                        then pkgs.haskellPackages
                        else pkgs.haskell.packages.${compiler};
 
-  drv = haskellPackages.callPackage f {};
+  variant = if doBenchmark then pkgs.haskell.lib.doBenchmark else pkgs.lib.id;
+
+  drv = variant (haskellPackages.callPackage f {});
 
 in
 
